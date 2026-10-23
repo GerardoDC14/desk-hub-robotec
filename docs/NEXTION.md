@@ -12,6 +12,8 @@ El TFT mide **463.552 bytes** y su SHA-256 es:
 
 El HMI incorpora las fuentes con IDs 0/1/2/3, de 32/64/16/128 píxeles. El arranque fija UART a 9600; Postinitialize oculta los componentes de diagnóstico, dibuja BLOQUEADO, activa `sendxy=1` y emite `sendme`. Su texto está en `robotec_page0.txt`. La Pi negocia 115200 durante la ejecución y dibuja las vistas sobre la misma page0.
 
+Las tarjetas redondeadas, los iconos meteorológicos nativos y el rediseño visual se generan desde Python y son compatibles con este mismo TFT. No necesitan volver a cargar firmware si las fuentes y el modelo permanecen iguales.
+
 Para editar, descarga [Nextion Editor oficial](https://nextion.tech/nextion-editor/), abre el HMI y conserva modelo y orientación. Compila, revisa errores y usa **File > TFT file output**. No renombres un HMI a TFT. Si cambias fuentes, IDs o resolución, adapta también Python.
 
 ## Cargar con microSD

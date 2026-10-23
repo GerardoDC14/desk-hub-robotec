@@ -15,12 +15,13 @@ flowchart LR
 
 - `robotec.py`: vistas, zonas táctiles, bloqueo, cronómetro, portadas y ciclo de vida de Spotify.
 - `desk_hub.py`: puerto serial, parser de tramas, cuenta regresiva, SQLite y consultas de red.
+- `soft_ui.py`: esquinas redondeadas, paneles cacheados e iconos de clima dibujados con círculos y líneas nativos.
 - `settings.py`: rutas relativas al clon y variables de configuración.
 - `pin_setup.py`: registro local PBKDF2-HMAC-SHA256, con sal aleatoria y comparación de tiempo constante.
 - `spotify_inicio.py`: comprueba la autorización temporal y lanza Soloist con la credencial privada.
 - `lock_cleanup.py`: elimina autorización y detiene Spotify al iniciar/detener el servicio del panel.
 
-Las operaciones de red e imágenes se ejecutan en hilos. El dibujo transmite comandos Nextion terminados en `FF FF FF` y evita reenviar textos sin cambios. Se reciben coordenadas al soltar mediante `sendxy=1`. Las portadas y el avatar se convierten a 32 × 32 píxeles con una paleta reducida y se dibujan ampliados por bloques; no son imágenes de alta resolución.
+Las operaciones de red e imágenes se ejecutan en hilos. El dibujo transmite comandos Nextion terminados en `FF FF FF` y evita reenviar textos sin cambios. Se reciben coordenadas al soltar mediante `sendxy=1`. Las portadas y el avatar se convierten a 48 × 48 píxeles con una paleta reducida y se dibujan ampliados por bloques; no son imágenes de alta resolución. La portada se muestra a 192 × 192 píxeles; su carga se reparte entre refrescos para atender toques durante la transmisión. El detalle adicional aumenta el tiempo de carga frente a una imagen de 32 × 32; depende del contenido y de UART. El indicador musical animado representa actividad, no un análisis del espectro del audio. Los títulos largos se desplazan cada dos segundos.
 
 ## Datos y temporización
 

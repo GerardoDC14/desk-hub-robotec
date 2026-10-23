@@ -17,13 +17,14 @@ import urllib.request
 from desk_hub import Hub, Timer, Frames, fetch, BG, CARD, INK, MUTED, MINT, BUTTON, PORT
 from pin_setup import verify_pin
 from settings import GITHUB_USER, SOLOIST
+from soft_ui import SoftUI
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
     return ((r>>3)<<11)|((g>>2)<<5)|(b>>3)
 
-BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('202638','30394D','FFF3DF','BBC7D6','73DCCB','47536A')]
-BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('82BDF5','F4C66D','F29A86','C3A5ED')]
+BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('101C2B','1D2D42','FBF7EF','B0C0CB','72E1C2','283D54')]
+BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('83C8EF','FFD08A','F4AB96','C2B9FB')]
 TABS = [('home','Inicio'),('time','Tiempo'),('away','Fuera'),('music','Spotify')]
 COUNT_FONT=3
 
@@ -57,25 +58,30 @@ def image_pixels(url):
     req = urllib.request.Request(url,headers={'User-Agent':'DeskHubRobotec/2.0'})
     with urllib.request.urlopen(req,timeout=6) as r:
         raw = r.read(2_000_000)
-    im = Image.open(io.BytesIO(raw)).convert('RGB').resize((32,32))
-    im = im.quantize(colors=48).convert('RGB')
+    im = Image.open(io.BytesIO(raw)).convert('RGB').resize((48,48), Image.Resampling.LANCZOS)
+    im = im.quantize(colors=96).convert('RGB')
     return [((r>>3)<<11)|((g>>2)<<5)|(b>>3) for r,g,b in im.getdata()]
 
 def image_commands(pixels,x,y,size):
-    step = size//32
+    grid=math.isqrt(len(pixels))
+    if grid*grid != len(pixels) or not grid:
+        raise ValueError('La imagen debe ser una cuadrícula cuadrada')
     commands = []
-    for row in range(32):
+    for row in range(grid):
         start = 0
-        while start < 32:
-            color = pixels[row*32+start]
+        while start < grid:
+            color = pixels[row*grid+start]
             end = start+1
-            while end < 32 and pixels[row*32+end] == color:
+            while end < grid and pixels[row*grid+end] == color:
                 end += 1
-            commands.append(f'fill {x+start*step},{y+row*step},{(end-start)*step},{step},{color}')
+            left=round(start*size/grid); right=round(end*size/grid)
+            top=round(row*size/grid); bottom=round((row+1)*size/grid)
+            if right>left and bottom>top:
+                commands.append(f'fill {x+left},{y+top},{right-left},{bottom-top},{color}')
             start = end
     return commands
 
-class Robotec(Hub):
+class Robotec(SoftUI, Hub):
     def __init__(self,port,directory):
         self.ready = threading.Event()
         self.images = {}
@@ -227,10 +233,28 @@ class Robotec(Hub):
         self.send(f'fill {x},{y},{w},{h},{color}')
 
     def label(self,key,x,y,w,h,value,font=2,color=INK,bg=CARD,align=0):
-        self.text(key,x,y,w,h,font,value,color,bg,align)
+        # Textos sobre tarjetas: margen interior preserva sus esquinas.
+        if key.startswith('pin') and key!='pindots':
+            self.soft_button(key,x,y,w,h,value,value=='Entrar',font)
+        elif bg==CARD:
+            self.panel(key,x,y,w,h,bg,12)
+            self.text(key,x+12,y+3,max(1,w-24),max(1,h-6),font,value,color,bg,align)
+        else:
+            self.text(key,x,y,w,h,font,value,color,bg,align)
+
+    def soft_button(self,key,x,y,w,h,value,selected=False,font=2):
+        fill=MINT if selected else BUTTON
+        style=(x,y,w,h,selected,font)
+        if self.cache.get('button:'+key)!=style:
+            self.rounded(x,y,w,h,min(14,h//2-1),fill)
+            self.cache['button:'+key]=style
+            self.cache.pop(key,None)
+        inset=min(14,max(3,h//4))
+        self.text(key,x+inset,y+(2 if h>=24 else 0),w-2*inset,h-4 if h>=24 else h,font,value,BG if selected else INK,fill,1)
 
     def button(self,key,x,y,w,h,value,selected=False):
-        self.label(key,x,y,w,h,value,2,BG if selected else INK,MINT if selected else BUTTON,1)
+        font=0 if h>=52 and len(value)*17<w-32 else 2
+        self.soft_button(key,x,y,w,h,value,selected,font)
 
     def navigate(self,view):
         if not self.unlocked and view not in ('lock','away'): view='lock'
@@ -370,12 +394,33 @@ class Robotec(Hub):
 
     def base(self):
         self.send(f'cls {BG}')
+        if self.screen=='home':
+            self.panel('homeclock',24,80,464,320,CARD,22)
+            for key,y,color in [('shortcut',80,LILAC),('awaycard',196,CORAL),('songcard',312,MINT)]:
+                self.panel(key,512,y,264,96,CARD,20)
+                self.send(f'cirs 548,{y+48},21,{BUTTON}')
+                if key=='shortcut':
+                    self.send(f'cir 548,{y+48},11,{color}')
+                    self.send(f'line 548,{y+48},548,{y+40},{color}')
+                    self.send(f'line 548,{y+48},555,{y+53},{color}')
+                elif key=='awaycard':
+                    self.send(f'line 538,{y+48},558,{y+48},{color}')
+                    self.send(f'line 551,{y+41},558,{y+48},{color}')
+                    self.send(f'line 551,{y+55},558,{y+48},{color}')
+                else:
+                    for j,height in enumerate([7,17,24,14,9]):
+                        self.rounded(538+j*5,y+48-height//2,3,height,1,color)
+        elif self.screen=='music':
+            self.panel('albumcard',16,80,240,330,CARD,20)
+        elif self.compact and self.screen=='away':
+            self.panel('awayproject',280,102,496,220,CARD,22)
         if not self.compact and self.screen not in ('lock','power'):
             self.label('brand',24,12,560,38,'Desk Hub Robotec',0,INK,BG)
             if self.screen=='home': self.button('power',650,12,126,40,'Apagar')
-            else: self.label('local',602,22,174,22,'ZAPOPAN / WI-FI',2,MINT,BG,2)
+            else: self.label('local',602,22,174,22,'TU ESPACIO',2,MINT,BG,2)
+            self.panel('dock',8,428,784,48,CARD,20)
             for i,(view,title) in enumerate(TABS):
-                self.button('nav'+view,i*200+8,432,184,40,title,view==self.screen)
+                self.button('nav'+view,i*200+16,434,168,36,title,view==self.screen)
         self.dirty=False
 
     def art(self,key,x,y,size):
@@ -392,6 +437,13 @@ class Robotec(Hub):
                 self.label('noart'+key,x,y,size,size,'ROBOTEC',0,MINT,BUTTON,1)
         for _ in range(min(20,len(self.artwork))): self.send(self.artwork.popleft())
 
+    @staticmethod
+    def marquee(value,limit):
+        if len(value)<=limit: return value
+        source=value+'   '
+        offset=int(time.monotonic()/2)%len(source)
+        return (source+source)[offset:offset+limit]
+
     def countdown(self):
         n=self.timer.remaining()
         return f'{n//3600:02}:{n//60%60:02}:{n%60:02}' if n>=3600 else f'{n//60:02}:{n%60:02}'
@@ -399,8 +451,8 @@ class Robotec(Hub):
     def progress(self,key,x,y,w,ratio,color=MINT):
         value=max(0,min(w,round(w*ratio)))
         if self.cache.get(key)!=value:
-            self.fill(x,y,w,6,BUTTON)
-            if value: self.fill(x,y,value,6,color)
+            self.rounded(x,y,w,8,4,BUTTON)
+            if value: self.rounded(x,y,value,8,4,color)
             self.cache[key]=value
 
     def render(self):
@@ -412,8 +464,11 @@ class Robotec(Hub):
             n=self.network.copy(); m=self.music.copy(); repos=self.repos.copy()
         now=dt.datetime.now()
         if self.screen=='lock':
-            self.label('locktitle',24,8,752,40,'Desk Hub Robotec / Bloqueado',0,LILAC,BG,1)
-            self.label('pindots',24,48,752,42,'*'*len(self.pin_entry) or '------',0,INK,BG,1)
+            self.label('locktitle',24,8,752,40,'Bienvenido a Robotec',0,LILAC,BG,1)
+            if self.cache.get('pindots')!=len(self.pin_entry):
+                self.rounded(278,54,244,32,15,CARD)
+                for i in range(6): self.send(f'cirs {315+i*34},70,5,{MINT if i<len(self.pin_entry) else BUTTON}')
+                self.cache['pindots']=len(self.pin_entry)
             keys=[['1','2','3'],['4','5','6'],['7','8','9'],['Borrar','0','Entrar']]
             for row,values in enumerate(keys):
                 for col,key in enumerate(values): self.label('pin'+key,220+col*120,96+row*70,112,62,key,0 if key.isdigit() else 2,BG if key=='Entrar' else INK,MINT if key=='Entrar' else BUTTON,1)
@@ -459,20 +514,19 @@ class Robotec(Hub):
                 self.button('awayunlock',124,342,552,58,'Desbloquear con PIN',True)
             return
         if self.screen=='home':
-            self.label('clock',24,100,464,104,now.strftime('%H:%M'),1,INK,BG,1)
+            self.text('clock',40,103,432,142,3,now.strftime('%H:%M'),INK,CARD,1)
             days=['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo']
-            self.label('date',24,211,464,30,f'{days[now.weekday()]} / {now:%d.%m.%Y}',2,MUTED,BG,1)
-            kind=weather_kind(n.get('weather_code',3))
-            if self.cache.get('weathericon')!=kind:
-                for command in image_commands(weather_pixels(kind),100,258,96): self.send(command)
-                self.cache['weathericon']=kind
-            self.label('weather',204,266,224,58,n['weather'],0,GOLD,BG,1)
-            self.label('condition',24,350,464,26,n['condition'],2,MUTED,BG,1)
-            self.label('seconds',24,375,464,24,now.strftime('%H:%M:%S'),2,MUTED,BG,1)
-            for key,y,title,detail in [('shortcut',80,'TIEMPO',self.countdown()+' / '+{'focus':'Enfoque','break':'Descanso','away':'Fuera','timer':'Timer'}[self.timer.data['mode']]),('awaycard',196,'ESTOY FUERA','Elige cuando vuelves'),('songcard',312,'SPOTIFY',m['title'][:22])]:
-                self.label(key+'title',512,y,264,44,{'shortcut':'Tiempo','awaycard':'Estoy fuera','songcard':'Spotify'}[key],0,{'shortcut':LILAC,'awaycard':CORAL,'songcard':MINT}[key],CARD,1)
-                self.label(key+'detail',512,y+44,264,50,detail,2,INK,CARD,1)
-            self.button('lockmanual',512,408,264,20,'Bloquear')
+            self.text('date',52,252,408,28,2,f'{days[now.weekday()]} / {now:%d.%m.%Y}',MUTED,CARD,1)
+            self.weather_icon('weathericon',68,302,weather_kind(n.get('weather_code',3)),64,CARD,GOLD,INK,BLUE)
+            self.text('weather',156,299,280,54,0,n['weather'],GOLD,CARD,0)
+            self.text('condition',156,356,298,24,2,n['condition'][:35],MUTED,CARD,0)
+            for key,y,title,detail,color in [
+                ('shortcut',80,'Tiempo',self.countdown()+' / '+{'focus':'Enfoque','break':'Descanso','away':'Fuera','timer':'Timer'}[self.timer.data['mode']],LILAC),
+                ('awaycard',196,'Estoy fuera','Elige cuando vuelves',CORAL),
+                ('songcard',312,'Spotify',m['title'][:22],MINT)]:
+                self.text(key+'title',576,y+12,188,40,0,title,color,CARD,1)
+                self.text(key+'detail',574,y+53,188,30,2,detail,INK,CARD,1)
+            self.button('lockmanual',512,408,264,18,'Bloquear')
         elif self.screen=='time':
             for i,(mode,title) in enumerate([('focus','Enfoque'),('break','Descanso'),('timer','Temporizador'),('watch','Cronometro')]):
                 self.button('mode'+mode,24+i*188,80,180,44,title,self.time_mode==mode)
@@ -498,8 +552,8 @@ class Robotec(Hub):
             deadline=self.timer.data['deadline'] if away else None
             self.label('return',24,392,752,24,'Regreso estimado: '+dt.datetime.fromtimestamp(deadline).strftime('%H:%M') if deadline else 'Selecciona duracion y pulsa Estoy fuera',2,MUTED,BG,1)
         elif self.screen=='music':
-            self.art('music',24,88,224)
-            self.label('musictitle',280,88,496,74,m['title'][:30],0,INK,BG)
+            self.art('music',40,96,192)
+            self.label('musictitle',280,88,496,74,self.marquee(m['title'],28),0,INK,BG)
             self.label('musicartist',280,170,496,42,m['artist'][:44],2,MUTED,BG)
             position=m.get('position',{})
             ms=position.get('position_ms',0)+(time.time()*1000-position.get('timestamp_ms',time.time()*1000))*position.get('speed',0)
@@ -511,7 +565,15 @@ class Robotec(Hub):
             self.button('volminus',280,350,130,50,'Vol -')
             self.label('volume',420,350,216,50,str(m['volume'])+' %',0,INK,BG,1)
             self.button('volplus',646,350,130,50,'Vol +')
-            self.label('playing',24,334,224,48,'REPRODUCIENDO' if m['status']=='playing' else 'EN PAUSA',2,MINT,BG,1)
+            self.label('playing',24,326,224,48,'REPRODUCIENDO' if m['status']=='playing' else 'EN PAUSA',2,MINT,CARD,1)
+            frame=int(time.monotonic()*2) if m['status']=='playing' else -1
+            if self.cache.get('musicactivity')!=frame:
+                self.fill(85,379,104,24,CARD)
+                for i in range(7):
+                    height=4 if frame<0 else 5+(frame*7+i*11)%18
+                    self.rounded(88+i*14,402-height,5,height,2,MINT)
+                self.cache['musicactivity']=frame
+
         elif self.screen=='github':
             self.art('github',24,88,192)
             self.label('profile',24,300,192,38,GITHUB_USER,2,MINT,BG,1)

@@ -4,6 +4,10 @@ Panel táctil con **Raspberry Pi 3 B y Nextion Enhanced de 7 pulgadas**: hora, c
 
 La Pi mantiene el estado, consulta internet y reproduce audio por su jack. Nextion dibuja la interfaz y envía toques mediante un adaptador USB–TTL CH340G.
 
+![Inicio con tarjetas redondeadas](docs/images/home.png)
+
+Vista reconstruida desde los comandos de dibujo, con datos de demostración y tipografía aproximada. La tipografía física es la incorporada en el HMI.
+
 ## Funciones
 
 - **Inicio:** reloj, fecha, temperatura e icono del clima.
@@ -60,7 +64,7 @@ Para desconectar, pulsa **Apagar** y confirma si habilitaste el permiso opcional
 - [Diagnóstico](docs/DIAGNOSTICO.md)
 - [Nextion: edición y actualización](docs/NEXTION.md)
 
-`robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
+`soft_ui.py` aporta tarjetas redondeadas e iconos meteorológicos nativos. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
 
 ## Comprobaciones
 
