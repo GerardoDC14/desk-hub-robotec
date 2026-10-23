@@ -1,0 +1,10 @@
+// Desk Hub Robotec / arranque bloqueado
+vis t0,0
+vis b0,0
+sendxy=1
+cls 8487
+xstr 24,100,752,70,0,50013,8487,1,1,1,"Desk Hub Robotec"
+xstr 24,190,752,60,0,65435,8487,1,1,1,"BLOQUEADO"
+xstr 24,270,752,50,2,48698,8487,1,1,1,"Esperando Raspberry Pi / teclado de PIN"
+xstr 24,360,752,40,2,30457,8487,1,1,1,"Spotify desactivado hasta desbloquear"
+sendme

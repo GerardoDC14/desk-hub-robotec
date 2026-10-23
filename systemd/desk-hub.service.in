@@ -1,0 +1,20 @@
+[Unit]
+Description=Desk Hub Robotec Nextion
+After=network.target user@@UID@.service
+Wants=user@@UID@.service
+
+[Service]
+Type=simple
+User=@USERNAME@
+SupplementaryGroups=dialout
+WorkingDirectory=@APP_DIR@
+EnvironmentFile=-@HOME@/.config/desk-hub/environment
+ExecStartPre=/usr/bin/python3 @APP_DIR@/lock_cleanup.py
+ExecStart=/usr/bin/python3 -u @APP_DIR@/robotec.py
+ExecStopPost=/usr/bin/python3 @APP_DIR@/lock_cleanup.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
