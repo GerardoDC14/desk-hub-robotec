@@ -1,8 +1,98 @@
 """Primitivas visuales Nextion: esquinas suaves e iconos nativos, sin bitmaps."""
 import math
+import time
+from font_metrics import text_width
 
 
 class SoftUI:
+    text_width = staticmethod(text_width)
+
+    def digital(self,key,x,y,w,h,value,font,foreground,background):
+        widths = [text_width(c,font)+2 for c in value]
+        style = (x,y,w,h,font,len(value))
+        if self.cache.get('digital:'+key) != style:
+            self.fill(x,y,w,h,background)
+            for old_key in list(self.cache):
+                if old_key.startswith('digit:'+key+':'):
+                    del self.cache[old_key]
+            self.cache['digital:'+key] = style
+        cursor = x+(w-sum(widths))//2
+        for index,(character,width) in enumerate(zip(value,widths)):
+            self.text('digit:'+key+':'+str(index),cursor,y,width,h,font,character,foreground,background,1)
+            cursor += width
+
+    @staticmethod
+    def pill_span(width, row, height=8):
+        if width <= 0:
+            return (0,0)
+        radius = min((height-1)//2,(width-1)//2)
+        distance = max(radius-row,row-(height-radius-1),0)
+        inset = math.ceil(radius-math.sqrt(max(0,radius*radius-distance*distance)))
+        return (inset,width-inset)
+
+    def delta_progress(self,key,x,y,w,ratio,foreground,background):
+        value = max(0,min(w,round(w*ratio)))
+        style = (x,y,w,foreground,background)
+        old = self.cache.get('delta:'+key)
+        if old is None or old[0] != style:
+            for row in range(8):
+                lo,hi=self.pill_span(w,row)
+                self.fill(x+lo,y+row,hi-lo,1,background)
+            old_value = 0
+        else:
+            old_value = old[1]
+        if value != old_value:
+            spans = []
+            for row in range(8):
+                track_lo,track_hi=self.pill_span(w,row)
+                a,b = self.pill_span(old_value,row)
+                c,d = self.pill_span(value,row)
+                a,b=max(track_lo,a),min(track_hi,b)
+                c,d=max(track_lo,c),min(track_hi,d)
+                if b<=a: a=b=track_lo
+                if d<=c: c=d=track_lo
+                # Diferencias de intervalos; nunca limpiar la barra entera.
+                for lo,hi,col in ((a,min(b,c),background),(max(a,d),b,background),
+                                  (c,min(d,a),foreground),(max(c,b),d,foreground)):
+                    if hi>lo:
+                        spans.append((lo,hi,row,col))
+            for lo,hi,row,col in spans:
+                self.fill(x+lo,y+row,hi-lo,1,col)
+        self.cache['delta:'+key] = (style,value)
+
+    def activity(self,key,x,bottom,playing,foreground,background):
+        phase = round(time.monotonic()*8)/8
+        heights = [4 if not playing else round(11+8*math.sin(phase*2.3+i*.85)) for i in range(7)]
+        previous = self.cache.get('activity:'+key,[0]*7)
+        for i,(old,new) in enumerate(zip(previous,heights)):
+            if new>old:
+                self.fill(x+i*14,bottom-new,5,new-old,foreground)
+            elif new<old:
+                self.fill(x+i*14,bottom-old,5,old-new,background)
+        self.cache['activity:'+key] = heights
+
+    def analog(self,key,cx,cy,radius,seconds,foreground,accent,background):
+        if 'dial:'+key not in self.cache:
+            self.send(f'cir {cx},{cy},{radius},{foreground}')
+            for i in range(12):
+                a=math.pi*i/6-math.pi/2
+                x,y=round(cx+math.cos(a)*(radius-5)),round(cy+math.sin(a)*(radius-5))
+                xx,yy=round(cx+math.cos(a)*(radius-11)),round(cy+math.sin(a)*(radius-11))
+                self.send(f'line {x},{y},{xx},{yy},{foreground}')
+            self.cache['dial:'+key] = True
+        angles = [(seconds/43200*math.tau,radius*.42,foreground),
+                  (seconds/3600*math.tau,radius*.66,foreground),
+                  (seconds/60*math.tau,radius*.78,accent)]
+        hands = [(round(cx+math.cos(a-math.pi/2)*length),round(cy+math.sin(a-math.pi/2)*length),col) for a,length,col in angles]
+        previous = self.cache.get('hands:'+key)
+        if previous != hands:
+            for x,y,_ in previous or []:
+                self.send(f'line {cx},{cy},{x},{y},{background}')
+            for x,y,col in hands:
+                self.send(f'line {cx},{cy},{x},{y},{col}')
+            self.send(f'cirs {cx},{cy},3,{accent}')
+            self.cache['hands:'+key] = hands
+
     def rounded(self, x, y, w, h, radius, color):
         if w <= 0 or h <= 0:
             return

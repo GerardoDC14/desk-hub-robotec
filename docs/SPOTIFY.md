@@ -71,3 +71,9 @@ spotify/soloist ctl -w 127.0.0.1:9090 now --json
 ```
 
 La consulta CLI requiere el panel desbloqueado y Soloist activo. Si la compilación del reproductor ha expirado, actualízala siguiendo al proveedor. No reinicies manualmente el receptor para saltarte el bloqueo.
+
+## Controles y presentación
+
+Pausar y Reproducir utilizan el mismo tamaño de fuente. La barra es táctil para avanzar o retroceder; Aleatorio activa/desactiva mezcla, y Repetir recorre No, Lista y Tema. El indicador de barras es decorativo y no mide el sonido real. La posición se interpola localmente entre eventos; no requiere consultar Spotify por cada movimiento visual.
+
+La portada usa vista rápida, refinamiento y caché en memoria. Volver a una canción conocida evita descargarla de nuevo, pero todavía hay que dibujarla en Nextion. El color y resolución son reducidos por el enlace UART. La API pública de [Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api) no documenta letras de canciones; esta integración no las presenta.
