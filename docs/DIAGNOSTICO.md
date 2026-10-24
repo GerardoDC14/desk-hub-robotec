@@ -42,3 +42,7 @@ nmcli device status
 Compara los indicadores de alimentación con la [documentación oficial de Raspberry Pi](https://www.raspberrypi.com/documentation/computers/os.html). Bajo voltaje puede afectar estabilidad incluso si la interfaz parece funcionar. Utiliza una fuente y cable adecuados, ventilación y apagado ordenado.
 
 Si solo fallan clima/GitHub, revisa conectividad, DNS y configuración; no necesitas reflashear Nextion. Si la hora es incorrecta, corrige la zona horaria y sincronización de Linux.
+
+## Lectura bajo iluminación intensa
+
+El panel configura brillo al 100 % y utiliza contraste alto. Comprueba la lectura desde el ángulo habitual y evita que la luminaria se refleje directamente en el cristal. Cambiar colores no elimina reflejos ni aumenta la luminosidad máxima del hardware. Si los textos grandes se leen y los pequeños no, identifica la vista y el texto concreto para ajustar su tamaño sin reducir el resto de la información.

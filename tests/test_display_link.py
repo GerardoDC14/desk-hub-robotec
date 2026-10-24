@@ -1,7 +1,9 @@
 """Regresiones de texto, límites UART y navegación del aviso público."""
 import time
+import threading
 import unittest
 from collections import deque
+from unittest.mock import Mock, patch
 from test_dashboard import hub
 from desk_hub import Frames
 from nextion_link import NextionLink, safe_text, END
@@ -68,7 +70,7 @@ class PublicDisplayTests(unittest.TestCase):
         self.assertEqual(value.repo_index,1); self.assertFalse(value.unlocked)
         value.last_touch=0; value.touch(710,435)
         self.assertEqual(value.screen,'lock'); self.assertIsNotNone(value.timer.data['deadline'])
-        value.last_touch=0; value.touch(200,416)
+        value.last_touch=0; value.touch(200,435)
         self.assertEqual(value.screen,'away'); self.assertFalse(value.unlocked)
 
     def test_unlock_area_does_not_include_count_or_project(self):
@@ -115,6 +117,50 @@ class PublicDisplayTests(unittest.TestCase):
         count=next(c for c in commands if c.startswith('xstr') and 'Faltan' in c)
         fields=count.partition(' ')[2].split(',',10)
         self.assertLessEqual(value.text_width(fields[10].strip('"'),int(fields[4])),int(fields[2]))
+
+    def prepare_unlock(self,value):
+        value.pin_record={'configured':True}; value.pin_entry='123456'; value.pin_failures=0
+        value.marker=Mock(); value.spotify_wake=threading.Event(); value.save=Mock()
+
+    def test_valid_pin_ends_away_and_allows_a_new_departure(self):
+        value=self.away(); self.prepare_unlock(value)
+        with patch('robotec.verify_pin',return_value=True): value.unlock_hub()
+        self.assertTrue(value.unlocked); self.assertIsNone(value.timer.data['deadline'])
+        self.assertEqual(value.timer.remaining(),1800); value.save.assert_called_once()
+        value.navigate('away'); self.assertFalse(value.compact)
+        value.touch(100,280)
+        self.assertTrue(value.compact); self.assertFalse(value.unlocked)
+        self.assertGreater(value.timer.remaining(),1795)
+
+    def test_bad_pin_does_not_cancel_away(self):
+        value=self.away(); self.prepare_unlock(value); deadline=value.timer.data['deadline']
+        with patch('robotec.verify_pin',return_value=False): value.unlock_hub()
+        self.assertFalse(value.unlocked); self.assertEqual(value.timer.data['deadline'],deadline)
+        value.save.assert_not_called()
+
+    def test_unlock_does_not_cancel_regular_timer(self):
+        value=hub(); self.prepare_unlock(value); value.unlocked=False
+        value.timer.toggle(); deadline=value.timer.data['deadline']
+        with patch('robotec.verify_pin',return_value=True): value.unlock_hub()
+        self.assertEqual(value.timer.data['deadline'],deadline); value.save.assert_not_called()
+
+    def test_home_contains_all_weather_details_without_navigation(self):
+        value=hub(); value.screen='home'; commands=[]; value.send=commands.append
+        value.network.update(feels='25 °C',humidity='68 %',wind='8 km/h')
+        value.render()
+        for text in ['Sensacion','Humedad','Viento','25 °C','68 %','8 km/h']:
+            self.assertTrue(any('"'+text+'"' in c for c in commands),text)
+        value.touch(650,220); self.assertEqual(value.screen,'home')
+
+    def test_palette_preserves_high_text_contrast_after_rgb565_conversion(self):
+        def luminance(color):
+            rgb=[(color>>11)/31,((color>>5)&63)/63,(color&31)/31]
+            rgb=[c/12.92 if c<=.04045 else ((c+.055)/1.055)**2.4 for c in rgb]
+            return sum(c*w for c,w in zip(rgb,[.2126,.7152,.0722]))
+        c=hub().theme
+        for foreground,background in [('ink','bg'),('muted','bg'),('ink','card'),('muted','card'),('mint','bg'),('bg','mint')]:
+            a,b=sorted([luminance(c[foreground]),luminance(c[background])])
+            self.assertGreaterEqual((b+.05)/(a+.05),7,(foreground,background))
 
 
 if __name__=='__main__': unittest.main()

@@ -10,7 +10,7 @@ Vista reconstruida desde los comandos de dibujo, con datos de demostración y ti
 
 ## Funciones
 
-- **Inicio:** reloj, fecha y clima. Toca la temperatura para ver sensación térmica, humedad y viento.
+- **Inicio:** reloj, fecha, temperatura, sensación térmica, humedad y viento en la misma pantalla.
 - **Tiempo:** Temporizador con presets de Enfoque/Descanso, Cronómetro con reloj analógico y vueltas, y Alarma local de una ejecución.
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
 - **Spotify:** portada progresiva, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con tipografía estable y animación por cambios parciales.
@@ -46,13 +46,15 @@ Continúa con [Instalación y servicios](docs/INSTALACION.md), [Firmware Nextion
 
 ## Uso
 
+La interfaz usa fondo grafito, texto blanco de alto contraste y navegación grande. El servicio ajusta el brillo de Nextion al 100 % al conectar. Los reflejos del cristal y el ángulo de visión pueden seguir afectando la lectura; orienta la pantalla para evitar luces reflejadas directamente.
+
 Al encender aparece BLOQUEADO. Introduce tu PIN y pulsa Entrar; no se distribuye un PIN predeterminado. El panel reintenta la conexión si enciendes Nextion después de la Pi.
 
 En **Tiempo**, elige Temporizador, Cronómetro o Alarma. El temporizador reúne presets de 5 minutos de descanso, 25 de enfoque, 45 y 60 minutos, además de ajustes −5, −1, +1 y +5. Iniciar amplía la cuenta; Pausar o Reiniciar regresa a los ajustes. Tiempo y Fuera comparten una cuenta regresiva: elegir una duración nueva sustituye la anterior. El cronómetro es independiente y conserva las cinco últimas vueltas.
 
 La **Alarma** se activa para la próxima ocurrencia de una hora local y suena una vez. Puedes probar el sonido, desactivarla o posponer cinco minutos cuando aparece el aviso. El temporizador también avisa al finalizar. Los avisos no desbloquean el panel ni activan Spotify. La Pi debe estar encendida y el servicio activo; no es un despertador que arranque la Pi apagada. Consulta [Tiempo y avisos](docs/TIEMPO.md).
 
-En **Fuera**, selecciona duración y pulsa Estoy fuera. Permanecen visibles la cuenta, hora de regreso y proyectos públicos. Se detiene Spotify y el acceso vuelve a exigir PIN. Una persona de confianza puede pulsar **Desbloquear** e introducir el PIN mientras la cuenta continúa. Desde el teclado, **Ver aviso de regreso** vuelve a la vista pública sin desbloquear. Las flechas cambian de proyecto; el cambio automático ocurre cada 18 segundos. El QR abre el perfil público de GitHub en el teléfono. Terminar la cuenta no desbloquea automáticamente.
+En **Fuera**, selecciona duración y pulsa Estoy fuera. Permanecen visibles la cuenta, hora de regreso y proyectos públicos. Se detiene Spotify y el acceso vuelve a exigir PIN. Pulsa **Desbloquear** e introduce el PIN correcto al regresar: se termina la salida y se restablece su duración para preparar la siguiente desde Fuera. Abrir el teclado o introducir un PIN incorrecto mantiene la cuenta. **Ver aviso de regreso** vuelve a la vista pública sin desbloquear. Las flechas cambian de proyecto; el cambio automático ocurre cada 18 segundos. El QR abre el perfil público de GitHub en el teléfono. Terminar la cuenta no desbloquea automáticamente.
 
 ![Aviso de regreso y proyectos públicos](docs/images/away.png)
 
@@ -70,7 +72,7 @@ Para desconectar, pulsa **Apagar** y confirma si habilitaste el permiso opcional
 - [Diagnóstico](docs/DIAGNOSTICO.md)
 - [Nextion: edición y actualización](docs/NEXTION.md)
 
-`editorial_views.py` define la composición y las zonas visuales de Inicio, Clima, Fuera, Spotify y acceso. `soft_ui.py` aporta iconos nativos y actualizaciones por diferencias. `nextion_link.py` filtra el texto y espera la confirmación de ejecución de cada lote UART. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas. `music_client.py` recibe eventos de Soloist. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
+`editorial_views.py` define la composición y las zonas visuales de Inicio, Fuera, Spotify y acceso. `soft_ui.py` aporta iconos nativos y actualizaciones por diferencias. `nextion_link.py` filtra el texto y espera la confirmación de ejecución de cada lote UART. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas. `music_client.py` recibe eventos de Soloist. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
 
 ## Comprobaciones
 

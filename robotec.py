@@ -29,8 +29,8 @@ def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
     return ((r>>3)<<11)|((g>>2)<<5)|(b>>3)
 
-BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('EEE9DF','F8F5EE','25342F','65716A','1F6252','DEDFD4')]
-BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('547C89','A06B25','B2593C','666D4F')]
+BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('171A1D','252A2E','FFFFFF','DCE3E8','7AE0BC','38434B')]
+BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('9FD4FF','FFD66F','FFB18D','D3D8C0')]
 TABS = [('home','Inicio'),('time','Tiempo'),('away','Fuera'),('music','Spotify')]
 COUNT_FONT=3
 
@@ -201,6 +201,9 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     def unlock_hub(self):
         if time.monotonic()<self.pin_wait or not self.pin_record: return
         if verify_pin(self.pin_entry,self.pin_record):
+            if self.timer.data['mode']=='away':
+                self.timer.reset()
+                self.save()
             self.marker.touch(mode=0o600)
             self.unlocked=True; self.pin_entry=''; self.pin_failures=0
             self.spotify_desired=True; self.spotify_wake.set()
@@ -264,7 +267,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             self.touch_notice(x,y); return
         if self.screen=='lock':
             if time.monotonic()<self.pin_wait: return
-            if 395<=y<439 and 32<=x<356 and self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
+            if 420<=y<464 and 32<=x<356 and self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
                 self.navigate('away'); return
             if PIN_Y<=y<PIN_Y+4*PIN_DY and PIN_X<=x<PIN_X+3*PIN_DX:
                 row=(y-PIN_Y)//PIN_DY; col=(x-PIN_X)//PIN_DX
@@ -299,9 +302,9 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
                     result=subprocess.run(['sudo','-n','/usr/bin/systemctl','poweroff'],timeout=5,capture_output=True)
                     if result.returncode: self.pin_message='No se pudo apagar / usa SSH'; self.navigate('lock')
             return
-        if self.screen=='home' and 656<=x<768 and 12<=y<48:
+        if self.screen=='home' and 632<=x<768 and 12<=y<52:
             self.navigate('power'); return
-        if self.screen=='home' and 532<=x<644 and 12<=y<48:
+        if self.screen=='home' and 448<=x<616 and 12<=y<52:
             self.lock_hub(); return
         if self.compact and self.screen in ('time','away'):
             if self.screen=='time' and self.time_mode=='watch' and 412<=y<448:
@@ -321,8 +324,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             if 0 <= i < 4: self.navigate(TABS[i][0])
             return
         if self.screen=='home':
-            if 490<=x<780 and 78<=y<264: self.navigate('weather')
-            elif 32<=x<768 and 292<=y<417: self.navigate('music')
+            if 32<=x<768 and 354<=y<424: self.navigate('music')
         elif self.screen=='time':
             self.touch_time(x,y)
         elif self.screen=='away':
@@ -442,8 +444,6 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             self.draw_away(repos); return
         if self.screen=='home':
             self.draw_home(now,n,m,weather_kind(n.get('weather_code',3)))
-        elif self.screen=='weather':
-            self.draw_weather(n,weather_kind(n.get('weather_code',3)))
         elif self.screen=='time':
             self.render_time()
         elif self.screen=='away':
@@ -493,6 +493,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
                     self.frames=Frames()
                     self.negotiate(); self.send('bkcmd=2'); self.send('page 0')
                     self.link=NextionLink(self.write_packet,self.receive_bytes,self.frames)
+                    self.send('dim=100')
                     self.send('sendme')
                     self.next_retry=time.monotonic()+3
                 except (RuntimeError,OSError):

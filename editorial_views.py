@@ -1,4 +1,4 @@
-"""Composición del panel: papel cálido, espacio y controles discretos."""
+"""Composición del panel con contraste alto y controles discretos."""
 import datetime as dt
 import math
 import time
@@ -34,19 +34,19 @@ class EditorialViews:
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
         if not self.compact and self.screen not in ('lock','power'):
-            self.text('brand',32,14,440,32,2,'ROBOTEC  /  DESK HUB',c['ink'],c['bg'])
+            self.text('brand',32,14,394,32,2,'ROBOTEC  /  DESK HUB',c['ink'],c['bg'])
             if self.screen=='home':
-                self.soft_button('lockmanual',532,12,112,36,'Bloquear')
-                self.soft_button('power',656,12,112,36,'Apagar')
+                self.soft_button('lockmanual',448,12,168,40,'Bloquear',font=0)
+                self.soft_button('power',632,12,136,40,'Apagar',font=0)
             else: self.text('local',550,14,218,32,2,LOCATION,c['muted'],c['bg'],2)
             self.fill(32,426,736,1,c['button'])
             for i,(view,title) in enumerate(TABS):
-                selected=view==self.screen or (view=='home' and self.screen=='weather')
-                self.text('nav'+view,i*200+24,431,152,40,2,title,c['mint'] if selected else c['muted'],c['bg'],1)
+                selected=view==self.screen
+                self.text('nav'+view,i*200+24,431,152,40,0,title,c['mint'] if selected else c['ink'],c['bg'],1)
                 if selected: self.fill(i*200+78,473,44,3,c['mint'])
         if self.screen=='home':
-            self.fill(478,88,1,170,c['button'])
-            self.fill(32,284,736,1,c['button'])
+            self.fill(478,88,1,166,c['button'])
+            self.fill(32,348,736,1,c['button'])
         if self.compact and self.screen=='away':
             self.fill(32,59,736,1,c['button'])
             self.panel('project',410,80,358,308,c['card'],6)
@@ -58,8 +58,8 @@ class EditorialViews:
         self.text('lockbrand',32,20,352,32,2,'ROBOTEC  /  DESK HUB',c['mint'],c['bg'])
         self.text('locktitle',32,91,352,48,0,'Bienvenido.',c['ink'],c['bg'])
         self.digital('lockclock',32,151,330,90,now.strftime('%H:%M'),1,c['ink'],c['bg'])
-        self.paragraph('lockhint',32,261,324,'Espera '+str(max(0,math.ceil(self.pin_wait-time.monotonic())))+' segundos' if time.monotonic()<self.pin_wait else self.pin_message,2,color=c['muted'])
-        self.paragraph('lockspotify',32,329,320,'Spotify se activa al desbloquear el panel.',2,color=c['muted'])
+        self.paragraph('lockhint',32,250,324,'Espera '+str(max(0,math.ceil(self.pin_wait-time.monotonic())))+' segundos' if time.monotonic()<self.pin_wait else self.pin_message,2,0,color=c['ink'])
+        self.paragraph('lockspotify',32,330,320,'Spotify se activa al desbloquear.',2,0,color=c['muted'])
         if self.cache.get('pindots')!=len(self.pin_entry):
             self.fill(416,65,328,32,c['bg'])
             for i in range(6): self.send(f"cirs {440+i*52},81,5,{c['mint'] if i<len(self.pin_entry) else c['button']}")
@@ -68,13 +68,13 @@ class EditorialViews:
             for col,title in enumerate(values):
                 self.soft_button('pin'+title,PIN_X+col*PIN_DX,PIN_Y+row*PIN_DY,104,62,title,title=='Entrar',0 if title.isdigit() else 2)
         if self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
-            self.soft_button('backaway',32,395,324,44,'Ver aviso de regreso')
+            self.soft_button('backaway',32,420,324,44,'Ver aviso de regreso')
 
     def draw_home(self,now,network,music,kind):
         c=self.theme
         days=['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo']
         months=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
-        self.text('date',32,67,422,30,2,f'{days[now.weekday()]}, {now.day} {months[now.month-1]} {now.year}',c['muted'],c['bg'])
+        self.text('date',32,65,422,38,0,self.fit(f'{days[now.weekday()]}, {now.day} {months[now.month-1]} {now.year}',422,0),c['ink'],c['bg'])
         self.digital('clock',24,106,430,151,now.strftime('%H:%M'),3,c['ink'],c['bg'])
         weather=network['weather']
         if '°' not in weather: weather='--°'
@@ -87,33 +87,24 @@ class EditorialViews:
         self.weather_icon('weathericon',left,102,kind,64,c['bg'],c['gold'],c['blue'],c['blue'])
         self.text('temperature',left+80,94,width,82,1,weather,c['ink'],c['bg'],1)
         condition=network['condition'].split(' / ')[0]
-        self.text('condition',504,184,264,30,2,self.fit(condition,264),c['ink'],c['bg'],1)
-        self.text('weatherlocation',504,218,264,26,2,LOCATION+' / ver clima',c['muted'],c['bg'],1)
-        self.text('nowlabel',32,302,736,24,2,'AHORA SUENA' if music['status']=='playing' else 'TU MUSICA',c['mint'],c['bg'])
-        self.text('homesong',32,332,736,40,0,self.fit(music['title'],736,0),c['ink'],c['bg'])
+        self.text('condition',504,180,264,38,0,self.fit(condition,264,0),c['ink'],c['bg'],1)
+        self.text('weatherlocation',504,222,264,28,2,self.fit(LOCATION,264),c['muted'],c['bg'],1)
+        for i,(title,value) in enumerate([('Sensacion',network.get('feels','--')),('Humedad',network.get('humidity','--')),('Viento',network.get('wind','--'))]):
+            x=32+i*254
+            self.text('weatherlabel'+str(i),x,260,236,38,0,title,c['ink'],c['bg'],1)
+            self.text('weathervalue'+str(i),x,300,236,44,0,value,c['mint'],c['bg'],1)
+        self.text('homesong',32,356,736,40,0,self.fit(music['title'],736,0),c['ink'],c['bg'])
         detail=music['artist'] if music['status']=='playing' else 'Abre Spotify y elige Desk Hub Robotec'
         if self.timer.data['deadline'] is not None:
             detail=('Fuera / regreso '+dt.datetime.fromtimestamp(self.timer.data['deadline']).strftime('%H:%M')) if self.timer.data['mode']=='away' else 'Temporizador / '+self.countdown()
         elif self.alarm.data['enabled']: detail='Alarma / '+dt.datetime.fromtimestamp(self.alarm.data['deadline']).strftime('%H:%M')
-        self.text('homedetail',32,379,736,28,2,self.fit(detail,736),c['muted'],c['bg'])
-
-    def draw_weather(self,network,kind):
-        c=self.theme
-        self.text('weatherheading',32,74,736,46,0,'El tiempo en '+LOCATION,c['ink'],c['bg'])
-        self.weather_icon('forecasticon',66,151,kind,96,c['bg'],c['gold'],c['blue'],c['blue'])
-        self.text('forecasttemp',190,145,320,100,1,network['weather'],c['ink'],c['bg'])
-        self.text('forecastcondition',64,254,688,36,0,self.fit(network['condition'].split(' / ')[0],688,0),c['ink'],c['bg'])
-        for i,(title,value) in enumerate([('Sensacion',network.get('feels','--')),('Humedad',network.get('humidity','--')),('Viento',network.get('wind','--'))]):
-            x=32+i*254
-            self.text('forecastlabel'+str(i),x,316,236,26,2,title,c['muted'],c['bg'],1)
-            self.text('forecastvalue'+str(i),x,348,236,44,0,value,c['ink'],c['bg'],1)
-        self.text('forecastsource',32,397,736,22,2,'Open-Meteo / '+network.get('weather_updated','sin actualizar'),c['muted'],c['bg'])
+        self.text('homedetail',32,398,736,24,2,self.fit(detail,736),c['muted'],c['bg'])
 
     def draw_away(self,repos):
         c=self.theme; deadline=self.timer.data['deadline']
         self.text('awayheading',32,13,512,40,0,'Estoy fuera.',c['ink'],c['bg'])
         self.text('awaystatus',560,18,208,30,2,'SPOTIFY ACTIVO' if self.unlocked else 'SPOTIFY DESACTIVADO',c['muted'],c['bg'],2)
-        self.text('awayreturnlabel',32,92,350,30,2,'VUELVO A LAS',c['coral'],c['bg'])
+        self.text('awayreturnlabel',32,83,350,40,0,'VUELVO A LAS',c['coral'],c['bg'])
         self.digital('awayreturn',24,132,366,142,dt.datetime.fromtimestamp(deadline).strftime('%H:%M'),3,c['ink'],c['bg'])
         remaining='Faltan '+self.countdown()
         self.text('awaycount',32,287,224,40,0 if self.text_width(remaining,0)<=224 else 2,remaining,c['coral'],c['bg'])
@@ -138,14 +129,14 @@ class EditorialViews:
             repo=dict(name='GitHub',description='Los proyectos publicos aparecen al conectar con GitHub.')
             stats='Solo informacion publica'; number='Sin proyectos'
         self.paragraph('awayrepo',430,137,316,repo['name'],2,0,bg=c['card'])
-        self.paragraph('awaydescription',430,227,316,repo.get('description') or 'Codigo y documentacion de este proyecto en GitHub.',3,2,c['muted'],c['card'])
+        self.paragraph('awaydescription',430,225,316,repo.get('description') or 'Codigo y documentacion de este proyecto en GitHub.',2,0,c['ink'],c['card'])
         self.text('awaystats',430,311,318,25,2,self.fit(stats,318),c['mint'],c['card'])
         self.soft_button('projectprev',430,343,70,32,'<')
         self.text('projectnumber',506,345,168,28,2,number,c['muted'],c['card'],1)
         self.soft_button('projectnext',680,343,68,32,'>')
         if self.unlocked: self.soft_button('awayhome',32,416,208,44,'Volver al inicio')
         else: self.text('awayprivacy',32,413,480,27,2,'Proyectos publicos. El panel sigue bloqueado.',c['muted'],c['bg'])
-        self.soft_button('awayunlock',552,416,216,44,'Bloquear' if self.unlocked else 'Desbloquear',True,2)
+        self.soft_button('awayunlock',552,416,216,44,'Bloquear' if self.unlocked else 'Desbloquear',True,0)
 
     def draw_away_setup(self):
         c=self.theme; away=self.timer.data['mode']=='away'
