@@ -4,15 +4,15 @@ Panel táctil con **Raspberry Pi 3 B y Nextion Enhanced de 7 pulgadas**: hora, c
 
 La Pi mantiene el estado, consulta internet y reproduce audio por su jack. Nextion dibuja la interfaz y envía toques mediante un adaptador USB–TTL CH340G.
 
-![Inicio con tarjetas redondeadas](docs/images/home.png)
+![Inicio del Desk Hub Robotec](docs/images/home.png)
 
 Vista reconstruida desde los comandos de dibujo, con datos de demostración y tipografía aproximada. La tipografía física es la incorporada en el HMI.
 
 ## Funciones
 
-- **Inicio:** reloj, fecha, temperatura e icono del clima.
+- **Inicio:** reloj, fecha y clima. Toca la temperatura para ver sensación térmica, humedad y viento.
 - **Tiempo:** Temporizador con presets de Enfoque/Descanso, Cronómetro con reloj analógico y vueltas, y Alarma local de una ejecución.
-- **Fuera:** duración, hora de regreso y carrusel de repositorios públicos. Al iniciar, bloquea y detiene Spotify.
+- **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
 - **Spotify:** portada progresiva, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con tipografía estable y animación por cambios parciales.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
 - **Persistencia:** SQLite conserva las cuentas entre reinicios.
@@ -37,7 +37,7 @@ El TFT incluido corresponde al modelo identificado **NX8048K070_011C**. Nextion 
 git clone https://github.com/GerardoDC14/desk-hub-robotec.git ~/desk-hub
 cd ~/desk-hub
 sudo apt update
-sudo apt install python3 python3-pil pulseaudio pulseaudio-utils alsa-utils
+sudo apt install python3 python3-pil python3-qrcode pulseaudio pulseaudio-utils alsa-utils
 python3 pin_setup.py
 python3 robotec.py --self-test
 ```
@@ -52,7 +52,11 @@ En **Tiempo**, elige Temporizador, Cronómetro o Alarma. El temporizador reúne 
 
 La **Alarma** se activa para la próxima ocurrencia de una hora local y suena una vez. Puedes probar el sonido, desactivarla o posponer cinco minutos cuando aparece el aviso. El temporizador también avisa al finalizar. Los avisos no desbloquean el panel ni activan Spotify. La Pi debe estar encendida y el servicio activo; no es un despertador que arranque la Pi apagada. Consulta [Tiempo y avisos](docs/TIEMPO.md).
 
-En **Fuera**, selecciona duración y pulsa Estoy fuera. Permanecen visibles la cuenta, hora de regreso y proyectos públicos. Se detiene Spotify y el acceso vuelve a exigir PIN. Una persona de confianza puede desbloquear mientras la cuenta continúa. Terminar la cuenta no desbloquea automáticamente.
+En **Fuera**, selecciona duración y pulsa Estoy fuera. Permanecen visibles la cuenta, hora de regreso y proyectos públicos. Se detiene Spotify y el acceso vuelve a exigir PIN. Una persona de confianza puede pulsar **Desbloquear** e introducir el PIN mientras la cuenta continúa. Desde el teclado, **Ver aviso de regreso** vuelve a la vista pública sin desbloquear. Las flechas cambian de proyecto; el cambio automático ocurre cada 18 segundos. El QR abre el perfil público de GitHub en el teléfono. Terminar la cuenta no desbloquea automáticamente.
+
+![Aviso de regreso y proyectos públicos](docs/images/away.png)
+
+Vista reconstruida con datos de demostración y tipografía aproximada.
 
 Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositivos disponibles de Spotify. Toca la barra para saltar a una posición, y usa Aleatorio o Repetir según prefieras. El nombre de la lista y el siguiente tema aparecen cuando Soloist los proporciona. Controla desde teléfono o pantalla. Bloquear, iniciar Fuera o perder comunicación con la pantalla detiene el receptor.
 
@@ -66,7 +70,7 @@ Para desconectar, pulsa **Apagar** y confirma si habilitaste el permiso opcional
 - [Diagnóstico](docs/DIAGNOSTICO.md)
 - [Nextion: edición y actualización](docs/NEXTION.md)
 
-`soft_ui.py` aporta tarjetas redondeadas, iconos nativos y actualizaciones por diferencias. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas. `music_client.py` recibe eventos de Soloist. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
+`editorial_views.py` define la composición y las zonas visuales de Inicio, Clima, Fuera, Spotify y acceso. `soft_ui.py` aporta iconos nativos y actualizaciones por diferencias. `nextion_link.py` filtra el texto y espera la confirmación de ejecución de cada lote UART. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas. `music_client.py` recibe eventos de Soloist. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
 
 ## Comprobaciones
 

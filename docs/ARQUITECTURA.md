@@ -13,6 +13,8 @@ flowchart LR
 
 ## Componentes
 
+- `editorial_views.py`: composición visual y avisos públicos, vista de clima y QR de GitHub.
+- `nextion_link.py`: normalización de texto, límites de paquetes y barrera de ejecución UART.
 - `robotec.py`: vistas, zonas táctiles, bloqueo, cronómetro, portadas y ciclo de vida de Spotify.
 - `desk_hub.py`: puerto serial, parser de tramas, cuenta regresiva, SQLite y consultas de red.
 - `soft_ui.py`: paneles, iconos, reloj analógico y barras actualizadas por diferencias.
@@ -24,13 +26,19 @@ flowchart LR
 - `spotify_inicio.py`: comprueba la autorización temporal y lanza Soloist con la credencial privada.
 - `lock_cleanup.py`: elimina autorización y detiene Spotify al iniciar/detener el servicio del panel.
 
-Las operaciones de red e imágenes se ejecutan en hilos. El dibujo transmite comandos Nextion terminados en `FF FF FF` y evita reenviar textos sin cambios. Se reciben coordenadas al soltar mediante `sendxy=1`. Las portadas y el avatar se convierten a 48 × 48 píxeles con una paleta reducida y se dibujan ampliados por bloques; no son imágenes de alta resolución. La portada se muestra a 192 × 192 píxeles. Primero se transmite una vista de 12 × 12 y luego el detalle de 48 × 48; los rectángulos iguales contiguos se fusionan y los píxeles ya correctos no se vuelven a enviar. Se conserva una caché en memoria de ocho portadas. Los paquetes de dibujo se limitan a unos 256 bytes y se intercalan con lectura táctil; el tiempo depende del contenido y UART. No se transmite vídeo ni una portada de resolución nativa completa. El indicador musical animado representa actividad, no un análisis del espectro del audio. Los títulos largos se desplazan cada dos segundos.
+Las operaciones de red e imágenes se ejecutan en hilos. El dibujo usa un solo escritor UART y comandos terminados en `FF FF FF`; se reciben coordenadas al soltar mediante `sendxy=1`.
+
+Los paquetes de dibujo, incluida su barrera, no superan 256 bytes. Con `bkcmd=2`, cada lote se completa con `get sys0`: el siguiente espera la respuesta numérica y recoge los errores de las instrucciones precedentes. Los toques recibidos durante esa espera quedan pendientes para el ciclo principal. Un error o tiempo agotado interrumpe el proceso; systemd aplica el cierre del receptor y reinicia bloqueado. La barrera confirma procesamiento, no es una captura visual ni una suma de comprobación del texto dibujado.
+
+El texto externo elimina controles, comillas dobles, barras inversas y el byte `FF`, y se limita a 160 caracteres antes de codificar. La caché considera contenido, posición, fuente y colores. Los títulos se ajustan al ancho medido y se distribuyen en dos líneas; el excedente se abrevia. El botón de acceso ocupa una zona independiente de la cuenta, el QR y los proyectos.
+
+Las portadas se convierten a 48 × 48 píxeles con una paleta reducida y se dibujan ampliadas a 192 × 192 por bloques. Primero se transmite una vista de 12 × 12 y luego el detalle de 48 × 48. Se fusionan rectángulos iguales contiguos y se omiten píxeles ya correctos. Una caché en memoria conserva ocho portadas. El tiempo depende del contenido y UART; no se transmite vídeo ni una portada de resolución nativa completa. El indicador musical representa actividad, no un análisis del espectro de audio.
 
 ## Datos y temporización
 
 La cuenta guarda un instante final y se resta del reloj de Linux. El cronómetro conserva el inicio, el tiempo acumulado y las cinco últimas vueltas. La alarma de una sola ejecución guarda su siguiente instante y se desactiva al dispararse. Si se recupera hasta cinco minutos tarde, se presenta el aviso; más tarde se informa que venció sin reproducir sonido. Un reinicio puede incluir el tiempo que la Pi estuvo apagada; un cambio brusco de hora de Linux puede afectar esas cuentas. Los cambios se guardan en SQLite, no hay escritura por cada refresco. Las barras y la animación musical dibujan solo sus diferencias. Las cifras grandes se actualizan por carácter; el reloj analógico borra y repone únicamente las agujas, lejos de las marcas de la esfera.
 
-Clima y GitHub se consultan aproximadamente cada diez minutos. Un proceso `soloist ctl trace` entrega eventos musicales en tiempo real; una consulta cada treinta segundos mantiene una referencia de respaldo. Si el stream no está disponible, se vuelve a consultar aproximadamente cada segundo. La cola se refresca cuando llegan eventos y con una consulta de respaldo mientras la vista musical está abierta. Los límites y errores de las APIs pueden conservar información anterior o mostrar indisponibilidad. Las cuentas locales siguen funcionando sin internet.
+Clima y GitHub se consultan aproximadamente cada diez minutos. La vista detallada de clima añade sensación térmica en °C, humedad en % y viento en km/h; la hora de actualización y el estado sin actualizar permiten reconocer datos anteriores. Fuera rota repositorios cada 18 segundos y permite avanzar o retroceder manualmente. Su QR se genera localmente con python3-qrcode, apunta al perfil público configurado y no contiene credenciales. Un proceso `soloist ctl trace` entrega eventos musicales en tiempo real; una consulta cada treinta segundos mantiene una referencia de respaldo. Si el stream no está disponible, se vuelve a consultar aproximadamente cada segundo. La cola se refresca cuando llegan eventos y con una consulta de respaldo mientras la vista musical está abierta. Los límites y errores de las APIs pueden conservar información anterior o mostrar indisponibilidad. Las cuentas locales siguen funcionando sin internet.
 
 ## Bloqueo y recuperación
 

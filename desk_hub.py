@@ -15,6 +15,7 @@ import time
 import urllib.request
 import urllib.parse
 from settings import GITHUB_USER, LOCATION, LATITUDE, LONGITUDE, TIMEZONE, SOLOIST
+from nextion_link import safe_text
 
 BG, CARD, INK, MUTED, MINT, BUTTON = 4259, 6438, 61278, 40248, 32471, 10666
 END = b'\xff\xff\xff'
@@ -121,6 +122,7 @@ class Hub:
         termios.tcsetattr(self.fd, termios.TCSANOW, c)
         termios.tcflush(self.fd, termios.TCIOFLUSH)
         self.frames = Frames()
+        self.link = None
         self.cache = {}
         self.network = {'weather': 'Clima: consultando', 'condition': LOCATION,
                         'github': 'Consultando perfil', 'github_detail': 'Solo informacion publica'}
@@ -142,7 +144,23 @@ class Hub:
         self.db.commit()
 
     def send(self, command):
-        packet = memoryview(command.encode('iso-8859-1', errors='replace') + END)
+        if self.link is not None:
+            self.link.send([command])
+        else:
+            self.write_packet(command.encode('iso-8859-1', errors='strict') + END)
+
+    def send_batch(self, commands):
+        if getattr(self,'link',None) is not None:
+            self.link.send(commands)
+        else:
+            for command in commands: self.send(command)
+
+    def receive_bytes(self, timeout):
+        r,_,_=select.select([self.fd],[],[],timeout)
+        return os.read(self.fd,4096) if r else b''
+
+    def write_packet(self, packet):
+        packet = memoryview(packet)
         until = time.monotonic() + 3
         while packet:
             if time.monotonic() > until:
@@ -153,18 +171,20 @@ class Hub:
         self.termios.tcdrain(self.fd)
 
     def text(self, key, x, y, w, h, font, value, color=INK, background=CARD, align=0):
-        value = str(value).replace('"', "'").replace('\\', '/').replace('\n', ' ')
-        if self.cache.get(key) == value:
+        value = safe_text(value)
+        style=(x,y,w,h,font,value,color,background,align)
+        if self.cache.get(key) == style:
             return
         self.send(f'xstr {x},{y},{w},{h},{font},{color},{background},{align},1,1,"{value}"')
-        self.cache[key] = value
+        self.cache[key] = style
 
     def worker(self):
         while not self.stop.is_set():
             try:
-                r = fetch('https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(dict(latitude=LATITUDE, longitude=LONGITUDE, current='temperature_2m,weather_code', timezone=TIMEZONE)))['current']
+                r = fetch('https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(dict(latitude=LATITUDE, longitude=LONGITUDE, current='temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m', timezone=TIMEZONE)))['current']
                 with self.lock:
-                    self.network.update(weather=f"{r['temperature_2m']:.0f} °C", condition=weather_label(r['weather_code']) + ' / ' + LOCATION,weather_code=r['weather_code'])
+                    self.network.update(weather=f"{r['temperature_2m']:.0f} °C", condition=weather_label(r['weather_code']) + ' / ' + LOCATION,weather_code=r['weather_code'],
+                                        feels=f"{r['apparent_temperature']:.0f} °C",humidity=f"{r['relative_humidity_2m']:.0f} %",wind=f"{r['wind_speed_10m']:.0f} km/h",weather_updated='actualizado '+dt.datetime.now().strftime('%H:%M'))
             except Exception as e:
                 print('Clima no disponible:', type(e).__name__, flush=True)
                 with self.lock:

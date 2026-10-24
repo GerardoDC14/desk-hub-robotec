@@ -96,7 +96,7 @@ class DashboardViews:
     def render_running(self):
         c=self.theme
         watch=self.time_mode=='watch'
-        self.label('runningtitle',24,75,752,48,'Tu ritmo, sin prisa' if watch else 'Un momento para ti',0,c['lilac'],c['bg'],1)
+        self.label('runningtitle',24,75,752,48,'Cronometro' if watch else 'Temporizador',0,c['lilac'],c['bg'],1)
         if watch:
             self.digital('runningtime',24,153,470,135,self.hms(self.elapsed()),1,c['ink'],c['bg'])
             self.analog('watchdial',638,213,88,self.elapsed(),c['muted'],c['mint'],c['bg'])

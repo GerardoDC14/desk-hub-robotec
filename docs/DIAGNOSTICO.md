@@ -13,6 +13,19 @@ journalctl -u desk-hub -n 40 --no-pager
 
 Si falta `dialout`, corrige el grupo y vuelve a iniciar sesión. Para aislar UART y lógica, utiliza el firmware y script de [diagnóstico mínimo](NEXTION.md). Un loopback requiere desconectar Nextion y unir TX/RX del adaptador con las fuentes apagadas antes de cambiar cables; no unas alimentación con señales.
 
+## Texto extraño o dibujo incompleto
+
+Comprueba que solo `desk-hub.service` abre el puerto. Detén el servicio antes de ejecutar un diagnóstico serial; dos procesos sobre el mismo puerto pueden mezclar comandos o consumir respuestas del otro.
+
+La aplicación espera una respuesta de Nextion entre lotes. El log `Nextion rechazó dibujo` incluye el código hexadecimal de error; `Nextion no confirmó el lote de dibujo` indica que falta la respuesta esperada. Revisa alimentación, USB, conectores y GND común antes de volver a iniciar el servicio. No cambies cables con alimentación conectada.
+
+```sh
+sudo systemctl restart desk-hub
+journalctl -u desk-hub -n 40 --no-pager
+```
+
+Después del reinicio debe aparecer el teclado de PIN. En Fuera, comprueba que Desbloquear permanece legible mientras cambia la cuenta y usa las flechas para verificar el cambio de proyecto. Los cambios de composición realizados en Python no requieren volver a cargar el TFT.
+
 ## Spotify no aparece o no suena
 
 Desbloquea primero. Comprueba el ejecutable, clave local con permisos 600, unidad del usuario, red y salida de audio. El receptor debe estar inactivo mientras el panel está bloqueado. Consulta [Spotify y audio](SPOTIFY.md). Revisa el log si el reproductor requiere actualización; no publiques claves ni sesiones al pedir ayuda.

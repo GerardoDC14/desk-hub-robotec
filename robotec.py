@@ -22,13 +22,15 @@ from dashboard_state import Alarm, AlertSound
 from dashboard_views import DashboardViews
 from music_client import MusicClient
 from music_state import position_ms
+from nextion_link import NextionLink
+from editorial_views import EditorialViews, PIN_X, PIN_Y, PIN_DX, PIN_DY
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
     return ((r>>3)<<11)|((g>>2)<<5)|(b>>3)
 
-BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('101C2B','1D2D42','FBF7EF','B0C0CB','72E1C2','283D54')]
-BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('83C8EF','FFD08A','F4AB96','C2B9FB')]
+BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('EEE9DF','F8F5EE','25342F','65716A','1F6252','DEDFD4')]
+BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('547C89','A06B25','B2593C','666D4F')]
 TABS = [('home','Inicio'),('time','Tiempo'),('away','Fuera'),('music','Spotify')]
 COUNT_FONT=3
 
@@ -93,9 +95,9 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
-    theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL)
+    theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
         self.ready = threading.Event()
         self.images = {}
@@ -226,7 +228,7 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
         fill=MINT if selected else BUTTON
         style=(x,y,w,h,selected,font)
         if self.cache.get('button:'+key)!=style:
-            self.rounded(x,y,w,h,min(14,h//2-1),fill)
+            self.rounded(x,y,w,h,min(6,h//2-1),fill)
             self.cache['button:'+key]=style
             self.cache.pop(key,None)
         inset=min(14,max(3,h//4))
@@ -262,16 +264,30 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
             self.touch_notice(x,y); return
         if self.screen=='lock':
             if time.monotonic()<self.pin_wait: return
-            if 96<=y<376 and 220<=x<580:
-                row=(y-96)//70; col=(x-220)//120
+            if 395<=y<439 and 32<=x<356 and self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
+                self.navigate('away'); return
+            if PIN_Y<=y<PIN_Y+4*PIN_DY and PIN_X<=x<PIN_X+3*PIN_DX:
+                row=(y-PIN_Y)//PIN_DY; col=(x-PIN_X)//PIN_DX
+                if (x-PIN_X)%PIN_DX>=104 or (y-PIN_Y)%PIN_DY>=62: return
                 keys=[['1','2','3'],['4','5','6'],['7','8','9'],['Borrar','0','Entrar']]
                 key=keys[row][col]
                 if key=='Borrar': self.pin_entry=self.pin_entry[:-1]
                 elif key=='Entrar': self.unlock_hub()
                 elif len(self.pin_entry)<6: self.pin_entry+=key
             return
+        if self.screen=='away' and self.compact:
+            if 416<=y<460 and 552<=x<768:
+                if self.unlocked: self.lock_hub(away=True)
+                else: self.navigate('lock')
+            elif self.unlocked and 416<=y<460 and 32<=x<240: self.navigate('home')
+            elif 343<=y<375 and (430<=x<500 or 680<=x<748):
+                with self.lock: count=len(self.repos)
+                if count:
+                    index=(self.repo_index+int((time.monotonic()-self.carousel_started)//18))%count
+                    self.repo_index=(index+(-1 if x<500 else 1))%count
+                    self.carousel_started=time.monotonic()
+            return
         if not self.unlocked:
-            if self.screen=='away' and 342<=y<400: self.navigate('lock')
             return
         if self.screen=='power':
             if 260<=y<330:
@@ -283,9 +299,9 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
                     result=subprocess.run(['sudo','-n','/usr/bin/systemctl','poweroff'],timeout=5,capture_output=True)
                     if result.returncode: self.pin_message='No se pudo apagar / usa SSH'; self.navigate('lock')
             return
-        if self.screen=='home' and 650<=x<776 and 12<=y<52:
+        if self.screen=='home' and 656<=x<768 and 12<=y<48:
             self.navigate('power'); return
-        if self.screen=='home' and 512<=x<776 and 408<=y<428:
+        if self.screen=='home' and 532<=x<644 and 12<=y<48:
             self.lock_hub(); return
         if self.compact and self.screen in ('time','away'):
             if self.screen=='time' and self.time_mode=='watch' and 412<=y<448:
@@ -305,10 +321,8 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
             if 0 <= i < 4: self.navigate(TABS[i][0])
             return
         if self.screen=='home':
-            if 512 <= x < 776:
-                if 80 <= y < 180: self.navigate('time')
-                elif 196 <= y < 296: self.navigate('away')
-                elif 312 <= y < 408: self.navigate('music')
+            if 490<=x<780 and 78<=y<264: self.navigate('weather')
+            elif 32<=x<768 and 292<=y<417: self.navigate('music')
         elif self.screen=='time':
             self.touch_time(x,y)
         elif self.screen=='away':
@@ -328,7 +342,9 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
                 self.navigate('away')
                 if self.timer.data['deadline'] is not None: self.lock_hub(away=True)
             elif 334 <= y < 386:
-                if self.timer.data['mode']=='away': self.change([-300,-60,60,300][max(0,min(3,(x-24)//188))])
+                if self.timer.data['mode']!='away':
+                    self.timer.data=dict(mode='away',duration=1800,remaining=1800,deadline=None)
+                self.change([-300,-60,60,300][max(0,min(3,(x-24)//188))])
         elif self.screen=='music':
             with self.lock: m=self.music.copy()
             command=None
@@ -359,37 +375,7 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
         return self.watch['elapsed']+(time.time()-self.watch['started'] if self.watch['started'] is not None else 0)
 
     def base(self):
-        self.send(f'cls {BG}')
-        if self.notice:
-            self.dirty=False; return
-        if self.screen=='home':
-            self.panel('homeclock',24,80,464,320,CARD,22)
-            for key,y,color in [('shortcut',80,LILAC),('awaycard',196,CORAL),('songcard',312,MINT)]:
-                self.panel(key,512,y,264,96,CARD,20)
-                self.send(f'cirs 548,{y+48},21,{BUTTON}')
-                if key=='shortcut':
-                    self.send(f'cir 548,{y+48},11,{color}')
-                    self.send(f'line 548,{y+48},548,{y+40},{color}')
-                    self.send(f'line 548,{y+48},555,{y+53},{color}')
-                elif key=='awaycard':
-                    self.send(f'line 538,{y+48},558,{y+48},{color}')
-                    self.send(f'line 551,{y+41},558,{y+48},{color}')
-                    self.send(f'line 551,{y+55},558,{y+48},{color}')
-                else:
-                    for j,height in enumerate([7,17,24,14,9]):
-                        self.rounded(538+j*5,y+48-height//2,3,height,1,color)
-        elif self.screen=='music':
-            self.panel('albumcard',16,80,240,330,CARD,20)
-        elif self.compact and self.screen=='away':
-            self.panel('awayproject',280,102,496,220,CARD,22)
-        if not self.compact and self.screen not in ('lock','power'):
-            self.label('brand',24,12,560,38,'Desk Hub Robotec',0,INK,BG)
-            if self.screen=='home': self.button('power',650,12,126,40,'Apagar')
-            else: self.label('local',602,22,174,22,'TU ESPACIO',2,MINT,BG,2)
-            self.panel('dock',8,428,784,48,CARD,20)
-            for i,(view,title) in enumerate(TABS):
-                self.button('nav'+view,i*200+16,434,168,36,title,view==self.screen)
-        self.dirty=False
+        self.draw_base()
 
     def art(self,key,x,y,size):
         with self.lock: data=self.images.get(key)
@@ -416,7 +402,7 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
             command=self.artwork[0]
             if batch and count+len(command)+3>256: break
             batch.append(self.artwork.popleft()); count+=len(command)+3
-        self.send(('\xff'*3).join(batch))
+        self.send_batch(batch)
         if not self.artwork:
             print(f'Imagen: {self.art_total} comandos / {time.monotonic()-self.art_started:.2f} s',flush=True)
 
@@ -443,18 +429,7 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
             n=self.network.copy(); m=self.music.copy(); repos=self.repos.copy()
         now=dt.datetime.now()
         if self.screen=='lock':
-            self.label('locktitle',24,8,752,40,'Bienvenido a Robotec',0,LILAC,BG,1)
-            if self.cache.get('pindots')!=len(self.pin_entry):
-                self.rounded(278,54,244,32,15,CARD)
-                for i in range(6): self.send(f'cirs {315+i*34},70,5,{MINT if i<len(self.pin_entry) else BUTTON}')
-                self.cache['pindots']=len(self.pin_entry)
-            keys=[['1','2','3'],['4','5','6'],['7','8','9'],['Borrar','0','Entrar']]
-            for row,values in enumerate(keys):
-                for col,key in enumerate(values): self.label('pin'+key,220+col*120,96+row*70,112,62,key,0 if key.isdigit() else 2,BG if key=='Entrar' else INK,MINT if key=='Entrar' else BUTTON,1)
-            left=max(0,math.ceil(self.pin_wait-time.monotonic()))
-            self.label('lockhint',24,390,752,38,f'Espera {left} segundos' if left else self.pin_message,2,MUTED,BG,1)
-            self.label('lockspotify',24,437,752,30,'Spotify desactivado hasta desbloquear',2,MINT,BG,1)
-            return
+            self.draw_lock(now); return
         if self.screen=='power':
             self.label('powertitle',24,80,752,120,'¿Apagar la Raspberry Pi?',0,INK,BG,1)
             self.label('powerhint',24,200,752,40,'Luego espera 30 s y retira la alimentacion de ambos equipos',2,MUTED,BG,1)
@@ -464,79 +439,17 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
         if self.compact and self.screen=='time':
             self.render_running(); return
         if self.compact and self.screen=='away':
-            self.label('awayintro',24,66,752,32,'Estoy fuera / mientras vuelvo, visita mi GitHub',2,LILAC,BG,1)
-            self.label('awaycount',24,106,240,94,self.countdown(),1,GOLD,BG,1)
-            deadline=self.timer.data['deadline']
-            self.label('awayreturn',24,207,240,30,'Vuelvo a las '+dt.datetime.fromtimestamp(deadline).strftime('%H:%M'),2,MUTED,BG,1)
-            self.art('github',48,252,64)
-            self.label('handle',120,252,140,64,GITHUB_USER,2,MINT,BG)
-            if repos:
-                index=int((time.monotonic()-self.carousel_started)//12)%len(repos)
-                repo=repos[index]
-                self.label('awayrepo',292,110,484,76,repo['name'][:32],0,INK,CARD)
-                self.label('awaydescription',292,190,484,90,(repo.get('description') or 'Explora este proyecto publico en GitHub')[:130],2,MUTED,CARD)
-                self.label('awaystats',292,284,484,32,f"{repo.get('language') or 'Proyecto'} / {repo['stargazers_count']} estrellas / {index+1} de {len(repos)}",2,MINT,CARD)
-            else: self.label('awaypending',292,110,484,170,'GitHub / consultando proyectos publicos',0,INK,CARD)
-            if self.unlocked:
-                self.button('awaypause',124,342,266,58,'Pausar',True)
-                self.button('awayreset',410,342,266,58,'Reiniciar')
-            else:
-                self.button('awayunlock',124,342,552,58,'Desbloquear con PIN',True)
-            return
+            self.draw_away(repos); return
         if self.screen=='home':
-            self.digital('clock',40,103,432,142,now.strftime('%H:%M'),3,INK,CARD)
-            days=['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo']
-            self.text('date',52,252,408,28,2,f'{days[now.weekday()]} / {now:%d.%m.%Y}',MUTED,CARD,1)
-            weather=(n['weather'],weather_kind(n.get('weather_code',3)))
-            if self.cache.get('weatherlayout')!=weather:
-                self.fill(52,295,408,80,CARD)
-                self.cache.pop('weathericon',None); self.cache.pop('weather',None)
-                width=self.text_width(n['weather'],0)+8
-                left=24+(464-64-16-width)//2
-                self.weather_icon('weathericon',left,300,weather[1],64,CARD,GOLD,INK,BLUE)
-                self.text('weather',left+80,301,width,54,0,n['weather'],GOLD,CARD,1)
-                self.cache['weatherlayout']=weather
-            self.text('condition',52,367,408,24,2,n['condition'][:46],MUTED,CARD,1)
-            for key,y,title,detail,color in [
-                ('shortcut',80,'Tiempo',('Alarma / '+dt.datetime.fromtimestamp(self.alarm.data['deadline']).strftime('%H:%M')) if self.alarm.data['enabled'] else self.countdown()+' / Temporizador',LILAC),
-                ('awaycard',196,'Estoy fuera','Elige cuando vuelves',CORAL),
-                ('songcard',312,'Spotify',m['title'][:22],MINT)]:
-                self.text(key+'title',576,y+12,188,40,0,title,color,CARD,1)
-                self.text(key+'detail',574,y+53,188,30,2,detail,INK,CARD,1)
-            self.button('lockmanual',512,408,264,18,'Bloquear')
+            self.draw_home(now,n,m,weather_kind(n.get('weather_code',3)))
+        elif self.screen=='weather':
+            self.draw_weather(n,weather_kind(n.get('weather_code',3)))
         elif self.screen=='time':
             self.render_time()
         elif self.screen=='away':
-            for i,v in enumerate([5,15,30,60,120]): self.button('preset'+str(i),24+i*150,82,144,48,str(v)+' min')
-            away=self.timer.data['mode']=='away'
-            self.label('awaytitle',24,145,752,32,'ESTOY FUERA / VUELVO EN' if away else 'ELIGE TU TIEMPO DE REGRESO',2,MUTED,BG,1)
-            self.label('awaytime',24,184,752,64,self.countdown() if away else '--:--',1,GOLD,BG,1)
-            self.button('awaystart',24,256,366,52,'Pausar' if away and self.timer.data['deadline'] is not None else 'Estoy fuera',True)
-            self.button('awayreset',410,256,366,52,'Reiniciar')
-            for i,v in enumerate(['-5 min','-1 min','+1 min','+5 min']): self.button('awayadjust'+str(i),24+i*188,334,180,52,v)
-            deadline=self.timer.data['deadline'] if away else None
-            self.label('return',24,392,752,24,'Regreso estimado: '+dt.datetime.fromtimestamp(deadline).strftime('%H:%M') if deadline else 'Selecciona duracion y pulsa Estoy fuera',2,MUTED,BG,1)
+            self.draw_away_setup()
         elif self.screen=='music':
-            self.art('music',40,96,192)
-            self.label('musictitle',280,82,496,70,self.marquee(m['title'],28),0,INK,BG)
-            self.label('musicartist',280,156,496,28,m['artist'][:52],2,MUTED,BG)
-            self.label('musiccontext',280,192,496,24,(m.get('context') or 'Spotify Connect')[:52],2,LILAC,BG)
-            ms=position_ms(m); dur=m.get('duration',0)
-            self.label('tracktime',280,224,496,24,f'{int(ms)//60000}:{int(ms)//1000%60:02} / {dur//60000}:{dur//1000%60:02}',2,MUTED,BG)
-            self.progress('trackprogress',280,259,496,ms/max(1,dur),BLUE)
-            for i,title in enumerate(['Anterior','Pausar' if m['status']=='playing' else 'Reproducir','Siguiente']):
-                self.soft_button('music'+str(i),280+i*165,282,156,54,title,i==1,2)
-            self.button('volminus',280,350,130,44,'Vol -')
-            self.label('volume',420,350,216,44,str(m['volume'])+' %',0,INK,BG,1)
-            self.button('volplus',646,350,130,44,'Vol +')
-            options=m.get('options',{})
-            self.soft_button('shuffle',280,400,236,24,'Aleatorio',options.get('shuffle',False),2)
-            repeat=options.get('repeat','off')
-            self.soft_button('repeat',528,400,248,24,'Repetir / '+{'off':'No','context':'Lista','track':'Tema'}.get(repeat,'No'),repeat!='off',2)
-            self.label('playing',24,308,224,30,'REPRODUCIENDO' if m['status']=='playing' else 'EN PAUSA',2,MINT,CARD,1)
-            self.activity('music',88,375,m['status']=='playing',MINT,CARD)
-            upcoming=m.get('next_title','')
-            self.text('nexttrack',28,388,216,20,2,('Luego / '+upcoming)[:26] if upcoming else 'Tu musica, a tu ritmo',MUTED,CARD,1)
+            self.draw_music(m)
 
         elif self.screen=='github':
             self.art('github',24,88,192)
@@ -576,24 +489,29 @@ class Robotec(DashboardViews, MusicClient, SoftUI, Hub):
         while True:
             if not self.online and time.monotonic()>=self.next_retry:
                 try:
-                    self.negotiate(); self.send('bkcmd=0'); self.send('page 0')
+                    self.link=None
+                    self.frames=Frames()
+                    self.negotiate(); self.send('bkcmd=2'); self.send('page 0')
+                    self.link=NextionLink(self.write_packet,self.receive_bytes,self.frames)
+                    self.send('sendme')
                     self.next_retry=time.monotonic()+3
                 except (RuntimeError,OSError):
                     self.next_retry=time.monotonic()+3
                     print('Esperando pantalla',flush=True)
             self.poll_tools()
-            r,_,_=select.select([self.fd],[],[],.005)
-            if r:
-                for frame in self.frames.feed(os.read(self.fd,4096)):
-                    if frame==b'\x66\x00':
-                        self.last_seen=time.monotonic()
-                        if not self.online:
-                            self.online=True; self.dirty=True; self.cache.clear(); self.art_key=None
-                    elif len(frame)==6 and frame[0]==0x67 and frame[5]==0:
-                        self.touch(int.from_bytes(frame[1:3],'big'),int.from_bytes(frame[3:5],'big'))
-                    elif frame==b'\x88':
-                        self.lock_hub(); self.online=False; self.next_retry=0
-                    elif frame and frame[0] in (0,3,4,5,0x1a): print('UART error:',frame.hex(),flush=True)
+            frames=list(self.link.pending) if self.link else []
+            if self.link: self.link.pending.clear()
+            frames.extend(self.frames.feed(self.receive_bytes(.005)))
+            for frame in frames:
+                if frame==b'\x66\x00':
+                    self.last_seen=time.monotonic()
+                    if not self.online:
+                        self.online=True; self.dirty=True; self.cache.clear(); self.art_key=None
+                elif len(frame)==6 and frame[0]==0x67 and frame[5]==0:
+                    self.touch(int.from_bytes(frame[1:3],'big'),int.from_bytes(frame[3:5],'big'))
+                elif frame==b'\x88':
+                    self.lock_hub(); self.online=False; self.next_retry=0
+                elif frame and frame[0] in (0,3,4,5,0x1a): print('UART error:',frame.hex(),flush=True)
             if self.online and time.monotonic()-self.last_tick >= .10:
                 self.render(); self.last_tick=time.monotonic()
             if self.online: self.flush_artwork()
@@ -624,7 +542,7 @@ def selftest():
     assert hub.timer.remaining()==1800
     hub.last_touch=0; hub.touch(100,280); assert hub.compact and not hub.unlocked
     assert hub.spotify_desired is False and hub.timer.data['deadline'] is not None
-    hub.last_touch=0; hub.touch(500,350); assert hub.screen=='lock'
+    hub.last_touch=0; hub.touch(650,435); assert hub.screen=='lock'
     assert hub.timer.data['deadline'] is not None
     assert weather_kind(61)=='rain' and weather_kind(0)=='sun' and weather_kind(95)=='storm'
     import hashlib
