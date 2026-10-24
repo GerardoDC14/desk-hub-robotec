@@ -1,4 +1,4 @@
-"""Alarma local de una sola ejecución y sonido breve por PulseAudio."""
+"""Alarma local y avisos repetidos, cancelables y con volumen propio."""
 import datetime as dt
 import math
 import os
@@ -14,7 +14,7 @@ import wave
 class Alarm:
     def __init__(self, data=None, clock=time.time):
         self.clock = clock
-        self.data = dict(hour=9, minute=0, enabled=False, deadline=None)
+        self.data = dict(hour=9, minute=0, enabled=False, deadline=None, volume=80)
         if data:
             self.data.update(data)
 
@@ -50,48 +50,70 @@ class Alarm:
 
 
 class AlertSound:
-    def __init__(self, directory, stop):
-        self.stop = stop
-        self.pending = threading.Event()
-        self.cancel = threading.Event()
-        self.path = Path(directory)/'alert.wav'
-        threading.Thread(target=self.worker, daemon=True).start()
+    MAX_SECONDS=180
+    REPEAT_GAP=.65
 
-    def play(self):
-        self.cancel.clear()
-        self.pending.set()
+    def __init__(self, directory, stop):
+        self.stop=stop
+        self.wake=threading.Event()
+        self.lock=threading.Lock()
+        self.request=None
+        self.path=Path(directory)/'alert-v2.wav'
+        self.thread=threading.Thread(target=self.worker,daemon=True)
+        self.thread.start()
+
+    def play(self,seconds=180,volume=80):
+        with self.lock:
+            self.request=(object(),time.monotonic()+max(.1,min(self.MAX_SECONDS,seconds)),max(0,min(100,volume)))
+        self.wake.set()
 
     def silence(self):
-        self.cancel.set()
-        self.pending.clear()
+        with self.lock: self.request=None
+        self.wake.set()
+
+    def active(self,request):
+        with self.lock: current=self.request is request
+        return current and not self.stop.is_set() and time.monotonic()<request[1]
+
+    def make_wave(self):
+        samples=bytearray(); rate=22050
+        for frequency in (523.25,659.25,783.99):
+            for i in range(int(rate*.34)):
+                t=i/rate
+                envelope=min(1,t/.02,(.34-t)/.04)
+                samples.extend(struct.pack('<h',round(16000*envelope*math.sin(2*math.pi*frequency*t))))
+            samples.extend(b'\0\0'*int(rate*.12))
+        with wave.open(str(self.path),'wb') as file:
+            file.setnchannels(1); file.setsampwidth(2); file.setframerate(rate)
+            file.writeframes(samples)
 
     def worker(self):
         while not self.stop.is_set():
-            if not self.pending.wait(.2):
-                continue
-            self.pending.clear()
+            self.wake.wait(.2); self.wake.clear()
+            with self.lock: request=self.request
+            if request is None: continue
             if not shutil.which('paplay'):
-                print('Aviso: paplay no disponible', flush=True)
+                print('Aviso: paplay no disponible',flush=True)
+                with self.lock:
+                    if self.request is request: self.request=None
                 continue
             try:
-                if not self.path.exists():
-                    samples = bytearray()
-                    rate = 22050
-                    for frequency in (523.25, 659.25, 783.99):
-                        for i in range(int(rate*.34)):
-                            t = i/rate
-                            envelope = min(1,t/.015)*max(0,1-t/.34)**2
-                            samples.extend(struct.pack('<h',round(4000*envelope*math.sin(2*math.pi*frequency*t))))
-                        samples.extend(b'\0\0'*int(rate*.08))
-                    with wave.open(str(self.path),'wb') as file:
-                        file.setnchannels(1); file.setsampwidth(2); file.setframerate(rate)
-                        file.writeframes(samples)
-                env = dict(os.environ, XDG_RUNTIME_DIR=f'/run/user/{os.getuid()}')
-                with subprocess.Popen(['paplay',str(self.path)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
-                    deadline = time.monotonic()+5
-                    while process.poll() is None:
-                        if self.cancel.wait(.03) or self.stop.is_set() or time.monotonic()>deadline:
-                            process.terminate()
-                            break
+                if not self.path.exists(): self.make_wave()
+                env=dict(os.environ,XDG_RUNTIME_DIR=f'/run/user/{os.getuid()}')
+                while self.active(request):
+                    volume=str(round(65536*request[2]/100))
+                    with subprocess.Popen(['paplay','--volume='+volume,str(self.path)],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL) as process:
+                        deadline=time.monotonic()+5
+                        while process.poll() is None:
+                            if not self.active(request) or time.monotonic()>deadline:
+                                process.terminate()
+                                try: process.wait(timeout=1)
+                                except subprocess.TimeoutExpired: process.kill()
+                                break
+                            self.wake.wait(.03); self.wake.clear()
+                    if not self.active(request): break
+                    self.wake.wait(self.REPEAT_GAP); self.wake.clear()
             except (OSError,subprocess.SubprocessError) as error:
                 print('Aviso de audio:',type(error).__name__,flush=True)
+            with self.lock:
+                if self.request is request: self.request=None

@@ -18,7 +18,7 @@ from soft_ui import SoftUI
 
 
 class Sound:
-    def play(self): pass
+    def play(self,**kwargs): pass
     def silence(self): pass
 
 
@@ -96,19 +96,21 @@ class PaintTests(unittest.TestCase):
         self.assertEqual(raster.im.crop((0,0,48,48)).tobytes(),bytes(channel for p in pixels for channel in (p,0,0)))
         self.assertEqual(len(image_commands([5]*2304,0,0,192)),1)
 
-    def test_pause_and_play_keep_font(self):
+    def test_play_pause_icons_have_identical_button_bounds(self):
         value=hub(); value.screen='music'; commands=[]; value.send=commands.append
-        value.render(); paused=next(c for c in commands if c.startswith('xstr') and 'Reproducir' in c)
+        value.render(); paused=value.cache['icon:toggle']
         commands.clear(); value.music['status']='playing'; value.render()
-        playing=next(c for c in commands if c.startswith('xstr') and 'Pausar' in c)
-        self.assertEqual(paused.split(',')[4],playing.split(',')[4])
+        playing=value.cache['icon:toggle']
+        self.assertEqual(paused[:3],playing[:3])
+        self.assertEqual((paused[3],playing[3]),('play','pause'))
+        self.assertTrue(all(not c.startswith('cls ') for c in commands))
 
 
 class ToolsTests(unittest.TestCase):
     def test_alarm_tab_not_replaced_by_running_timer(self):
         value=hub(); value.timer.toggle(); value.touch(650,100)
         self.assertEqual(value.time_mode,'alarm'); self.assertFalse(value.compact)
-        value.last_touch=0; value.touch(100,340)
+        value.last_touch=0; value.touch(400,370)
         self.assertTrue(value.alarm.data['enabled'])
 
     def test_notice_does_not_unlock(self):
@@ -117,9 +119,11 @@ class ToolsTests(unittest.TestCase):
         self.assertFalse(value.unlocked); self.assertIsNone(value.notice); self.assertEqual(value.screen,'lock')
 
     def test_seek_and_shuffle_are_queued(self):
-        value=hub(); value.screen='music'; value.touch(528,260)
+        value=hub(); value.screen='music'; value.touch(544,267)
         self.assertEqual(value.music_commands.get_nowait(),['seek','100000'])
-        value.last_touch=0; value.touch(350,410)
+        value.last_touch=0; value.touch(700,32)
+        self.assertEqual(value.screen,'music_options')
+        value.last_touch=0; value.touch(600,180)
         self.assertEqual(value.music_commands.get_nowait(),['shuffle','on'])
 
     def test_stopwatch_lap_preserves_running_state(self):

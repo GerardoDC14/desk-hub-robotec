@@ -26,72 +26,77 @@ class DashboardViews:
             mode = ['timer','watch','alarm'][min(2,(x-24)//254)]
             self.time_mode = mode
             if mode=='timer' and self.timer.data['mode']=='away': self.set_duration(600)
-            self.navigate('time')
-            return
+            self.navigate('time'); return
         if self.time_mode=='alarm':
-            if 250<=y<294 and 24<=x<776:
-                self.alarm.adjust(**[{'hours':-1},{'hours':1},{'minutes':-1},{'minutes':1}][min(3,(x-24)//188)])
+            if 158<=y<246 and 286<=x<514:
+                self.alarm_field='hour' if x<400 else 'minute'
+            elif 178<=y<236 and (209<=x<267 or 533<=x<591):
+                field=getattr(self,'alarm_field','minute')
+                self.alarm.adjust(**{('hours' if field=='hour' else 'minutes'):-1 if x<400 else 1})
                 self.save()
-            elif 316<=y<368:
-                if x<390:
-                    if self.alarm.data['enabled']: self.alarm.cancel()
-                    else: self.alarm.arm()
-                    self.save()
-                else: self.alert_sound.play()
+            elif 279<=y<319 and 360<=x<668:
+                self.alarm.data['volume']=max(20,min(100,round((x-360)/308*100)))
+                self.save()
+            elif 342<=y<398 and 240<=x<560:
+                if self.alarm.data['enabled']: self.alarm.cancel()
+                else: self.alarm.arm()
+                self.save()
+            elif 342<=y<398 and 600<=x<768:
+                self.alert_sound.play(seconds=5,volume=self.alarm.data['volume'])
             return
-        watch = self.time_mode=='watch'
-        if not watch and 248<=y<290 and 24<=x<776:
-            self.set_duration([300,1500,2700,3600][min(3,(x-24)//188)])
-        elif 306<=y<358:
-            if x<390:
-                if watch:
-                    if self.watch['started'] is None: self.watch['started']=time.time()
-                    else: self.watch.update(elapsed=self.elapsed(),started=None)
-                else:
-                    self.time_mode='timer'
-                    if self.timer.data['mode']=='away': self.set_duration(600)
-                    self.timer.toggle()
-            else:
-                if watch: self.watch={'elapsed':0.0,'started':None,'laps':[],'lap_count':0}
-                else: self.timer.reset()
-            self.save(); self.navigate('time')
-        elif 372<=y<414:
-            if watch: self.lap()
-            elif 24<=x<776: self.change([-300,-60,60,300][min(3,(x-24)//188)])
+        watch=self.time_mode=='watch'
+        if not watch:
+            if 178<=y<236 and (209<=x<267 or 533<=x<591):
+                self.set_duration(max(60,min(86400,self.timer.remaining()+(-60 if x<400 else 60))))
+            elif 283<=y<323 and 194<=x<614:
+                self.set_duration([300,1500,3600][min(2,(x-194)//140)])
+            elif 342<=y<398 and 240<=x<560:
+                if self.timer.data['mode']=='away': self.set_duration(600)
+                self.timer.toggle(); self.save(); self.navigate('time')
+            elif 342<=y<398 and 600<=x<768:
+                self.timer.reset(); self.save(); self.navigate('time')
+        elif 342<=y<398:
+            if 240<=x<560:
+                self.watch['started']=time.time(); self.save(); self.navigate('time')
+            elif 600<=x<768:
+                self.watch={'elapsed':0.0,'started':None,'laps':[],'lap_count':0}
+                self.save(); self.navigate('time')
 
     def render_time(self):
         c=self.theme
         for i,(mode,title) in enumerate([('timer','Temporizador'),('watch','Cronometro'),('alarm','Alarma')]):
-            self.button('mode'+mode,24+i*254,80,244,44,title,self.time_mode==mode)
+            self.text_action('mode'+mode,24+i*254,80,244,44,title,self.time_mode==mode,0)
+            if self.cache.get('timemode')!=self.time_mode:
+                self.fill(74+i*254,126,144,2,c['mint'] if self.time_mode==mode else c['bg'])
+        self.cache['timemode']=self.time_mode
         if self.time_mode=='alarm':
-            self.digital('alarmvalue',24,147,752,90,f"{self.alarm.data['hour']:02}:{self.alarm.data['minute']:02}",1,c['mint'],c['bg'])
-            for i,title in enumerate(['Hora -','Hora +','Minuto -','Minuto +']):
-                self.button('alarmadjust'+str(i),24+i*188,250,180,44,title)
-            self.button('alarmtoggle',24,316,366,52,'Desactivar' if self.alarm.data['enabled'] else 'Activar',self.alarm.data['enabled'])
-            self.button('alarmtest',410,316,366,52,'Probar sonido')
+            field=getattr(self,'alarm_field','minute')
+            for name,x,value in [('hour',286,self.alarm.data['hour']),('minute',414,self.alarm.data['minute'])]:
+                self.text('alarm'+name,x,158,100,86,1,f'{value:02}',c['mint'] if field==name else c['ink'],c['bg'],1)
+            self.text('alarmcolon',386,158,28,86,1,':',c['ink'],c['bg'],1)
+            self.icon_button('alarmminus',238,207,29,'minus'); self.icon_button('alarmplus',562,207,29,'plus')
+            self.text('alarmselect',294,247,212,28,2,'Toca hora o minutos',c['muted'],c['bg'],1)
+            self.text('alarmvolume',132,282,212,36,2,'Volumen del aviso',c['muted'],c['bg'])
+            self.progress('alarmvol',360,296,308,self.alarm.data['volume']/100,c['mint'])
+            self.text('alarmpercent',684,282,84,36,2,str(self.alarm.data['volume'])+'%',c['ink'],c['bg'],2)
+            self.soft_button('alarmtoggle',240,342,320,56,'Desactivar' if self.alarm.data['enabled'] else 'Activar alarma',True,0)
+            self.text_action('alarmtest',600,342,168,56,'Probar sonido')
             deadline=self.alarm.data['deadline']
-            status='Sonara el '+dt.datetime.fromtimestamp(deadline).strftime('%d/%m a las %H:%M') if deadline else 'Alarma de una vez / requiere Pi encendida'
-            self.label('alarmhint',24,388,752,28,status,2,c['muted'],c['bg'],1)
+            status='Programada: '+dt.datetime.fromtimestamp(deadline).strftime('%d/%m · %H:%M') if deadline else 'Se repite hasta detenerla, hasta 3 minutos'
+            self.text('alarmhint',32,400,736,23,2,status,c['muted'],c['bg'],1)
             return
         watch=self.time_mode=='watch'
         if watch:
-            self.digital('watchvalue',24,156,470,92,self.hms(self.elapsed()),1,c['mint'],c['bg'])
-            self.analog('watchdial',638,205,69,self.elapsed(),c['muted'],c['mint'],c['bg'])
-        else:
-            self.digital('timevalue',24,140,752,90,self.countdown(),1,c['mint'],c['bg'])
-            for i,title in enumerate(['5 / Descanso','25 / Enfoque','45 min','60 min']):
-                self.button('duration'+str(i),24+i*188,248,180,42,title)
-            self.progress('timerbar',24,232,752,1-self.timer.remaining()/max(1,self.timer.data['duration']))
-        running=self.watch['started'] is not None if watch else self.timer.data['deadline'] is not None
-        self.button('start',24,306,366,52,'Pausar' if running else 'Iniciar',True)
-        self.button('reset',410,306,366,52,'Reiniciar')
-        if watch:
+            self.digital('watchvalue',48,166,450,92,self.hms(self.elapsed()),1,c['ink'],c['bg'])
+            self.analog('watchdial',638,215,69,self.elapsed(),c['muted'],c['mint'],c['bg'])
             last=self.watch.get('laps',[])
-            text='Marcar vuelta' if not last else 'Vuelta '+str(self.watch.get('lap_count',len(last)))+' / '+self.hms(last[-1])
-            self.button('lap',24,372,752,42,text)
+            detail='Listo para comenzar' if not last else 'Ultima vuelta / '+self.hms(last[-1])
+            self.text('watchdetail',48,282,704,40,2,detail,c['muted'],c['bg'],1)
         else:
-            for i,title in enumerate(['-5 min','-1 min','+1 min','+5 min']):
-                self.button('adjust'+str(i),24+i*188,372,180,42,title)
+            self.duration_picker('timer',self.timer.remaining(),[(5,'5 / Descanso'),(25,'25 / Enfoque'),(60,'1 hora')])
+        elapsed=self.elapsed()>0 if watch else self.timer.remaining()<self.timer.data['duration']
+        self.soft_button('start',240,342,320,56,'Continuar' if elapsed else 'Iniciar',True,0)
+        self.text_action('reset',600,342,168,56,'Reiniciar' if elapsed else '')
 
     def render_running(self):
         c=self.theme
@@ -116,7 +121,7 @@ class DashboardViews:
             self.notice['title']=title
             self.notice['kind']=kind
         self.dirty=True; self.cache.clear(); self.artwork.clear(); self.art_key=None
-        if kind!='missed': self.alert_sound.play()
+        if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'])
 
     def poll_tools(self):
         changed=self.alarm.poll()
@@ -138,7 +143,7 @@ class DashboardViews:
         c=self.theme
         self.label('noticetitle',24,84,752,100,self.notice['title'],1,c['mint'],c['bg'],1)
         self.label('noticeclock',24,193,752,45,dt.datetime.now().strftime('%H:%M'),0,c['muted'],c['bg'],1)
-        self.button('dismiss',124,270,266,60,'Aceptar',True)
+        self.button('dismiss',124,270,266,60,'Detener',True)
         if self.notice['kind']=='alarm': self.button('snooze',410,270,266,60,'Posponer 5 min')
         self.label('noticehint',24,369,752,40,'Tu PIN sigue protegiendo el panel' if not self.unlocked else 'Puedes volver a tu actividad',2,c['muted'],c['bg'],1)
 

@@ -53,3 +53,9 @@ Tres PIN incorrectos producen treinta segundos de espera. Esa espera reside en m
 ## Alcance de validación
 
 Los autotests comprueban lógica y parser sin hardware. El apagado físico, la secuencia de alimentación, tolerancias de fuentes y la instalación en otra Pi requieren comprobación real. El proyecto usa servicios de usuario y systemd de Linux; Windows se utiliza para editar y compilar el HMI, no para ejecutar el panel conectado.
+
+## Fuentes y avisos
+
+`font_metrics.py` almacena el ancho de un byte de cada carácter de las fuentes ZI v6 incorporadas. El byte contiguo corresponde al margen izquierdo; no forma parte del ancho. El formato se contrastó con los archivos del proyecto y la [documentación del lector ZI](https://github.com/hagronnestad/nextion-font-editor/blob/master/Docs/Nextion%20Font%20Format%20Specification%20ZI%20version%206.md). La condición meteorológica utiliza una fuente menor cuando no cabe completa.
+
+`AlertSound` ejecuta un solo proceso de audio a la vez. Cada solicitud tiene un identificador y un plazo; una solicitud nueva sustituye a la anterior, y Detener cancela también un sonido en curso. El volumen se aplica al flujo `paplay`, sin modificar la salida global ni Spotify. La forma de onda tiene picos inferiores a la mitad del rango PCM de 16 bits.

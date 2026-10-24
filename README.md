@@ -13,7 +13,7 @@ Vista reconstruida desde los comandos de dibujo, con datos de demostración y ti
 - **Inicio:** reloj, fecha, temperatura, sensación térmica, humedad y viento en la misma pantalla.
 - **Tiempo:** Temporizador con presets de Enfoque/Descanso, Cronómetro con reloj analógico y vueltas, y Alarma local de una ejecución.
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
-- **Spotify:** portada progresiva, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con tipografía estable y animación por cambios parciales.
+- **Spotify:** portada progresiva, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles de transporte con iconos, barra de volumen y opciones secundarias en una vista propia.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
 - **Persistencia:** SQLite conserva las cuentas entre reinicios.
 
@@ -50,19 +50,25 @@ La interfaz usa fondo grafito, texto blanco de alto contraste y navegación gran
 
 Al encender aparece BLOQUEADO. Introduce tu PIN y pulsa Entrar; no se distribuye un PIN predeterminado. El panel reintenta la conexión si enciendes Nextion después de la Pi.
 
-En **Tiempo**, elige Temporizador, Cronómetro o Alarma. El temporizador reúne presets de 5 minutos de descanso, 25 de enfoque, 45 y 60 minutos, además de ajustes −5, −1, +1 y +5. Iniciar amplía la cuenta; Pausar o Reiniciar regresa a los ajustes. Tiempo y Fuera comparten una cuenta regresiva: elegir una duración nueva sustituye la anterior. El cronómetro es independiente y conserva las cinco últimas vueltas.
+En **Tiempo**, elige Temporizador, Cronómetro o Alarma. El temporizador ofrece accesos a 5 minutos de descanso, 25 de enfoque y una hora. Los controles − y + ajustan un minuto por toque, entre 1 minuto y 24 horas. Iniciar amplía la cuenta; Pausar o Reiniciar regresa a los ajustes. Tiempo y Fuera comparten una cuenta regresiva: elegir una duración nueva sustituye la anterior. El cronómetro es independiente y conserva las cinco últimas vueltas.
 
-La **Alarma** se activa para la próxima ocurrencia de una hora local y suena una vez. Puedes probar el sonido, desactivarla o posponer cinco minutos cuando aparece el aviso. El temporizador también avisa al finalizar. Los avisos no desbloquean el panel ni activan Spotify. La Pi debe estar encendida y el servicio activo; no es un despertador que arranque la Pi apagada. Consulta [Tiempo y avisos](docs/TIEMPO.md).
+La **Alarma** se programa para la próxima ocurrencia de una hora local. Toca las horas o los minutos y usa −/+; la barra ajusta el volumen propio del aviso. El sonido se repite hasta Detener o Posponer 5 min, con un límite de tres minutos. Probar sonido dura cinco segundos. El temporizador avisa al finalizar durante un máximo de treinta segundos. Los avisos no desbloquean el panel ni activan Spotify. La Pi debe estar encendida y el servicio activo; no es un despertador que arranque la Pi apagada. Consulta [Tiempo y avisos](docs/TIEMPO.md).
 
-En **Fuera**, selecciona duración y pulsa Estoy fuera. Permanecen visibles la cuenta, hora de regreso y proyectos públicos. Se detiene Spotify y el acceso vuelve a exigir PIN. Pulsa **Desbloquear** e introduce el PIN correcto al regresar: se termina la salida y se restablece su duración para preparar la siguiente desde Fuera. Abrir el teclado o introducir un PIN incorrecto mantiene la cuenta. **Ver aviso de regreso** vuelve a la vista pública sin desbloquear. Las flechas cambian de proyecto; el cambio automático ocurre cada 18 segundos. El QR abre el perfil público de GitHub en el teléfono. Terminar la cuenta no desbloquea automáticamente.
+En **Fuera**, elige 15, 30 o 60 minutos, o ajusta la duración con −/+ de un minuto. Pulsa Estoy fuera para iniciar. Permanecen visibles la cuenta, hora de regreso y proyectos públicos. Se detiene Spotify y el acceso vuelve a exigir PIN. Pulsa **Desbloquear** e introduce el PIN correcto al regresar: se termina la salida y se restablece su duración para preparar la siguiente desde Fuera. Abrir el teclado o introducir un PIN incorrecto mantiene la cuenta. **Ver aviso de regreso** vuelve a la vista pública sin desbloquear. Las flechas cambian de proyecto; el cambio automático ocurre cada 18 segundos. El QR abre el perfil público de GitHub en el teléfono. Terminar la cuenta no desbloquea automáticamente.
 
 ![Aviso de regreso y proyectos públicos](docs/images/away.png)
 
 Vista reconstruida con datos de demostración y tipografía aproximada.
 
-Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositivos disponibles de Spotify. Toca la barra para saltar a una posición, y usa Aleatorio o Repetir según prefieras. El nombre de la lista y el siguiente tema aparecen cuando Soloist los proporciona. Controla desde teléfono o pantalla. Bloquear, iniciar Fuera o perder comunicación con la pantalla detiene el receptor.
+Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositivos disponibles de Spotify. Toca la barra superior para saltar a una posición y la inferior para cambiar el volumen directamente. Los iconos controlan anterior, pausa/reproducción y siguiente. En Opciones están Aleatorio, Repetir y el siguiente tema, cuando Soloist lo proporciona. Controla desde teléfono o pantalla. Bloquear, iniciar Fuera o perder comunicación con la pantalla detiene el receptor.
 
-Para desconectar, pulsa **Apagar** y confirma si habilitaste el permiso opcional, o ejecuta `sudo systemctl poweroff` por SSH. Espera al apagado antes de quitar energía; no cortes alimentación durante una carga TFT o escritura en microSD.
+![Reproductor de música](docs/images/music.png)
+
+![Preparar una salida](docs/images/away-setup.png)
+
+Vistas reconstruidas con datos de demostración y tipografía aproximada.
+
+Para desconectar, toca **Apagar** en la esquina superior de Inicio y confirma si habilitaste el permiso opcional, o ejecuta `sudo systemctl poweroff` por SSH. Espera al apagado antes de quitar energía; no cortes alimentación durante una carga TFT o escritura en microSD.
 
 ## Configuración y funcionamiento
 

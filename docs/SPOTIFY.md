@@ -74,6 +74,6 @@ La consulta CLI requiere el panel desbloqueado y Soloist activo. Si la compilaci
 
 ## Controles y presentación
 
-Pausar y Reproducir utilizan el mismo tamaño de fuente. La barra es táctil para avanzar o retroceder; Aleatorio activa/desactiva mezcla, y Repetir recorre No, Lista y Tema. El indicador de barras es decorativo y no mide el sonido real. La posición se interpola localmente entre eventos; no requiere consultar Spotify por cada movimiento visual.
+El botón circular central alterna los símbolos de reproducir y pausa, con el mismo tamaño. A sus lados están anterior y siguiente. La barra bajo el título permite avanzar o retroceder; la barra Volumen cambia el nivel directamente al tocarla. En Opciones, Aleatorio activa/desactiva mezcla y Repetir recorre No, Lista y Canción. Volver regresa al reproductor. El indicador de barras es decorativo y no mide el sonido real. La posición se interpola localmente entre eventos; no requiere consultar Spotify por cada movimiento visual.
 
 La portada usa vista rápida, refinamiento y caché en memoria. Volver a una canción conocida evita descargarla de nuevo, pero todavía hay que dibujarla en Nextion. El color y resolución son reducidos por el enlace UART. La API pública de [Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api) no documenta letras de canciones; esta integración no las presenta.

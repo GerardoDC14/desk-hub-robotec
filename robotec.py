@@ -302,10 +302,12 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
                     result=subprocess.run(['sudo','-n','/usr/bin/systemctl','poweroff'],timeout=5,capture_output=True)
                     if result.returncode: self.pin_message='No se pudo apagar / usa SSH'; self.navigate('lock')
             return
-        if self.screen=='home' and 632<=x<768 and 12<=y<52:
+        if self.screen=='home' and 648<=x<768 and 12<=y<52:
             self.navigate('power'); return
-        if self.screen=='home' and 448<=x<616 and 12<=y<52:
+        if self.screen=='home' and 504<=x<624 and 12<=y<52:
             self.lock_hub(); return
+        if self.screen in ('music','music_options') and 632<=x<768 and 12<=y<52:
+            self.navigate('music_options' if self.screen=='music' else 'music'); return
         if self.compact and self.screen in ('time','away'):
             if self.screen=='time' and self.time_mode=='watch' and 412<=y<448:
                 self.lap(); return
@@ -324,48 +326,40 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             if 0 <= i < 4: self.navigate(TABS[i][0])
             return
         if self.screen=='home':
-            if 32<=x<768 and 354<=y<424: self.navigate('music')
+            if 32<=x<396 and 280<=y<424: self.navigate('music')
         elif self.screen=='time':
             self.touch_time(x,y)
         elif self.screen=='away':
-            if 82 <= y < 130:
-                i=(x-24)//150
-                if 0 <= i < 5:
-                    seconds=[5,15,30,60,120][i]*60
-                    self.timer.data=dict(mode='away',duration=seconds,remaining=seconds,deadline=None)
-                    self.save()
-            elif 256 <= y < 308:
-                if x < 390:
-                    if self.timer.data['mode']!='away': self.timer.mode('away'); self.timer.data['deadline']=None
-                    self.timer.toggle()
-                else: self.timer.reset()
+            seconds=None
+            if 178<=y<236 and (209<=x<267 or 533<=x<591):
+                remaining=self.timer.remaining() if self.timer.data['mode']=='away' else 1800
+                seconds=max(60,min(86400,remaining+(-60 if x<400 else 60)))
+            elif 283<=y<323 and 194<=x<614:
+                seconds=[900,1800,3600][min(2,(x-194)//140)]
+            if seconds is not None:
+                self.timer.data=dict(mode='away',duration=seconds,remaining=seconds,deadline=None)
                 self.save()
-                self.carousel_started=time.monotonic()
-                self.navigate('away')
-                if self.timer.data['deadline'] is not None: self.lock_hub(away=True)
-            elif 334 <= y < 386:
+            elif 342<=y<398 and 240<=x<560:
                 if self.timer.data['mode']!='away':
                     self.timer.data=dict(mode='away',duration=1800,remaining=1800,deadline=None)
-                self.change([-300,-60,60,300][max(0,min(3,(x-24)//188))])
-        elif self.screen=='music':
+                self.timer.toggle(); self.save(); self.carousel_started=time.monotonic()
+                self.lock_hub(away=True)
+        elif self.screen in ('music','music_options'):
             with self.lock: m=self.music.copy()
             command=None
-            if 248<=y<274 and 280<=x<776:
-                if m.get('duration',0): command=['seek',str(round((x-280)/496*m['duration']))]
-            elif 282 <= y < 336:
-                i=(x-280)//165
-                if 0 <= i < 3: command=[['prev'],['pause' if m['status']=='playing' else 'play'],['next']][i]
-            elif 350 <= y < 394:
-                delta=-10 if 280 <= x < 410 else 10 if 646 <= x < 776 else 0
-                if delta:
-                    with self.lock:
-                        value=max(0,min(100,self.music['volume']+delta))
-                        self.music['volume']=value
-                        command=['volume',str(value)]
-            elif 400<=y<424:
+            if self.screen=='music_options':
                 options=m.get('options',{})
-                if 280<=x<516: command=['shuffle','off' if options.get('shuffle') else 'on']
-                elif 528<=x<776: command=['repeat',{'off':'context','context':'track','track':'off'}.get(options.get('repeat','off'),'off')]
+                if 488<=x<752 and 159<=y<211: command=['shuffle','off' if options.get('shuffle') else 'on']
+                elif 488<=x<752 and 231<=y<283: command=['repeat',{'off':'context','context':'track','track':'off'}.get(options.get('repeat','off'),'off')]
+            elif 255<=y<279 and 320<=x<768:
+                if m.get('duration',0): command=['seek',str(round((x-320)/448*m['duration']))]
+            elif 285<=y<353:
+                for cx,action in [(434,'prev'),(544,'pause' if m['status']=='playing' else 'play'),(654,'next')]:
+                    if (x-cx)**2+(y-319)**2<=(34 if cx==544 else 28)**2: command=[action]
+            elif 365<=y<409 and 410<=x<668:
+                value=max(0,min(100,round((x-410)/258*100)))
+                with self.lock: self.music['volume']=value
+                command=['volume',str(value)]
             if command: self.music_commands.put(command)
         elif self.screen=='github' and 346 <= y < 394:
             with self.lock: count=len(self.repos)
@@ -450,6 +444,8 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             self.draw_away_setup()
         elif self.screen=='music':
             self.draw_music(m)
+        elif self.screen=='music_options':
+            self.draw_music_options(m)
 
         elif self.screen=='github':
             self.art('github',24,88,192)
@@ -536,12 +532,12 @@ def selftest():
     hub.marker=type('Marker',(),{'unlink':lambda *a,**k:None})()
     hub.spotify_wake=threading.Event(); hub.music_commands=queue.Queue()
     hub.last_touch=0; hub.cache={}; hub.artwork=deque(); hub.art_key=None
-    hub.touch(100,330); assert hub.compact and hub.timer.data['deadline'] is not None
+    hub.touch(400,370); assert hub.compact and hub.timer.data['deadline'] is not None
     hub.last_touch=0; hub.touch(200,350)
     assert not hub.compact and hub.timer.data['deadline'] is None
-    hub.screen='away'; hub.last_touch=0; hub.touch(330,100)
+    hub.screen='away'; hub.last_touch=0; hub.touch(400,300)
     assert hub.timer.remaining()==1800
-    hub.last_touch=0; hub.touch(100,280); assert hub.compact and not hub.unlocked
+    hub.last_touch=0; hub.touch(400,370); assert hub.compact and not hub.unlocked
     assert hub.spotify_desired is False and hub.timer.data['deadline'] is not None
     hub.last_touch=0; hub.touch(650,435); assert hub.screen=='lock'
     assert hub.timer.data['deadline'] is not None

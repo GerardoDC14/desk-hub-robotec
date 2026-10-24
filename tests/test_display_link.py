@@ -128,7 +128,7 @@ class PublicDisplayTests(unittest.TestCase):
         self.assertTrue(value.unlocked); self.assertIsNone(value.timer.data['deadline'])
         self.assertEqual(value.timer.remaining(),1800); value.save.assert_called_once()
         value.navigate('away'); self.assertFalse(value.compact)
-        value.touch(100,280)
+        value.touch(400,370)
         self.assertTrue(value.compact); self.assertFalse(value.unlocked)
         self.assertGreater(value.timer.remaining(),1795)
 

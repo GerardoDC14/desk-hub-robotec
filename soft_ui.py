@@ -7,6 +7,38 @@ from font_metrics import text_width
 class SoftUI:
     text_width = staticmethod(text_width)
 
+    def icon_button(self,key,cx,cy,radius,icon,selected=False):
+        c=self.theme; bg=c['mint'] if selected else c['card']
+        fg=c['bg'] if selected else c['ink']
+        style=(cx,cy,radius,icon,selected)
+        if self.cache.get('icon:'+key)==style: return
+        self.send(f'cirs {cx},{cy},{radius},{bg}')
+        if icon in ('plus','minus'):
+            self.fill(cx-10,cy-2,21,4,fg)
+            if icon=='plus': self.fill(cx-2,cy-10,4,21,fg)
+        elif icon=='pause':
+            for x in (cx-10,cx+4): self.fill(x,cy-13,6,26,fg)
+        elif icon in ('play','next','prev'):
+            direction=-1 if icon=='prev' else 1
+            for row in range(-13,14):
+                width=max(1,round((13-abs(row))*1.5))
+                self.fill(cx-7 if direction==1 else cx+7-width,cy+row,width,1,fg)
+            if icon!='play': self.fill(cx+13 if direction==1 else cx-16,cy-13,3,27,fg)
+        self.cache['icon:'+key]=style
+
+    def text_action(self,key,x,y,w,h,title,selected=False,font=2):
+        c=self.theme
+        self.text(key,x,y,w,h,font,title,c['mint'] if selected else c['ink'],c['bg'],1)
+
+    def duration_picker(self,key,seconds,presets):
+        c=self.theme
+        self.icon_button(key+'minus',238,207,29,'minus')
+        self.icon_button(key+'plus',562,207,29,'plus')
+        self.digital(key+'value',294,159,212,86,str(max(0,int(seconds)//60)),1,c['ink'],c['bg'])
+        self.text(key+'unit',294,247,212,28,2,('minutos' if int(seconds)%60==0 else f'minutos {int(seconds)%60:02} s'),c['muted'],c['bg'],1)
+        for i,(minutes,title) in enumerate(presets):
+            self.text_action(key+'preset'+str(i),194+i*140,283,132,40,title,seconds==minutes*60)
+
     def digital(self,key,x,y,w,h,value,font,foreground,background):
         widths = [text_width(c,font)+2 for c in value]
         style = (x,y,w,h,font,len(value))

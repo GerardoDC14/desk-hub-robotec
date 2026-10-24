@@ -36,17 +36,19 @@ class EditorialViews:
         if not self.compact and self.screen not in ('lock','power'):
             self.text('brand',32,14,394,32,2,'ROBOTEC  /  DESK HUB',c['ink'],c['bg'])
             if self.screen=='home':
-                self.soft_button('lockmanual',448,12,168,40,'Bloquear',font=0)
-                self.soft_button('power',632,12,136,40,'Apagar',font=0)
+                self.text_action('lockmanual',504,12,120,40,'Bloquear')
+                self.text_action('power',648,12,120,40,'Apagar')
+            elif self.screen in ('music','music_options'):
+                self.text_action('musicoptions',632,12,136,40,'Volver' if self.screen=='music_options' else 'Opciones')
             else: self.text('local',550,14,218,32,2,LOCATION,c['muted'],c['bg'],2)
             self.fill(32,426,736,1,c['button'])
             for i,(view,title) in enumerate(TABS):
-                selected=view==self.screen
+                selected=view==self.screen or (view=='music' and self.screen=='music_options')
                 self.text('nav'+view,i*200+24,431,152,40,0,title,c['mint'] if selected else c['ink'],c['bg'],1)
                 if selected: self.fill(i*200+78,473,44,3,c['mint'])
         if self.screen=='home':
-            self.fill(478,88,1,166,c['button'])
-            self.fill(32,348,736,1,c['button'])
+            self.fill(428,82,1,308,c['button'])
+            self.fill(32,268,364,1,c['button'])
         if self.compact and self.screen=='away':
             self.fill(32,59,736,1,c['button'])
             self.panel('project',410,80,358,308,c['card'],6)
@@ -74,31 +76,32 @@ class EditorialViews:
         c=self.theme
         days=['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo']
         months=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
-        self.text('date',32,65,422,38,0,self.fit(f'{days[now.weekday()]}, {now.day} {months[now.month-1]} {now.year}',422,0),c['ink'],c['bg'])
-        self.digital('clock',24,106,430,151,now.strftime('%H:%M'),3,c['ink'],c['bg'])
+        self.text('date',32,77,364,38,0,f'{days[now.weekday()]}, {now.day} {months[now.month-1]}',c['ink'],c['bg'])
+        self.digital('clock',24,112,380,145,now.strftime('%H:%M'),3,c['ink'],c['bg'])
         weather=network['weather']
         if '°' not in weather: weather='--°'
         weather=weather.replace(' °C','°')
         if self.cache.get('homeweatherlayout')!=(weather,kind):
-            self.fill(500,90,268,86,c['bg'])
+            self.fill(464,78,304,88,c['bg'])
             self.cache.pop('weathericon',None); self.cache.pop('temperature',None)
             self.cache['homeweatherlayout']=(weather,kind)
-        width=self.text_width(weather,1)+8; group=64+16+width; left=510+(258-group)//2
-        self.weather_icon('weathericon',left,102,kind,64,c['bg'],c['gold'],c['blue'],c['blue'])
-        self.text('temperature',left+80,94,width,82,1,weather,c['ink'],c['bg'],1)
+        width=self.text_width(weather,1)+8; group=64+16+width; left=464+(304-group)//2
+        self.weather_icon('weathericon',left,89,kind,64,c['bg'],c['gold'],c['blue'],c['blue'])
+        self.text('temperature',left+80,78,width,86,1,weather,c['ink'],c['bg'],1)
         condition=network['condition'].split(' / ')[0]
-        self.text('condition',504,180,264,38,0,self.fit(condition,264,0),c['ink'],c['bg'],1)
-        self.text('weatherlocation',504,222,264,28,2,self.fit(LOCATION,264),c['muted'],c['bg'],1)
+        font=0 if self.text_width(condition,0)<=304 else 2
+        self.text('condition',464,173,304,40,font,self.fit(condition,304,font),c['ink'],c['bg'],1)
+        self.text('weatherlocation',464,216,304,26,2,LOCATION,c['muted'],c['bg'],1)
         for i,(title,value) in enumerate([('Sensacion',network.get('feels','--')),('Humedad',network.get('humidity','--')),('Viento',network.get('wind','--'))]):
-            x=32+i*254
-            self.text('weatherlabel'+str(i),x,260,236,38,0,title,c['ink'],c['bg'],1)
-            self.text('weathervalue'+str(i),x,300,236,44,0,value,c['mint'],c['bg'],1)
-        self.text('homesong',32,356,736,40,0,self.fit(music['title'],736,0),c['ink'],c['bg'])
-        detail=music['artist'] if music['status']=='playing' else 'Abre Spotify y elige Desk Hub Robotec'
-        if self.timer.data['deadline'] is not None:
-            detail=('Fuera / regreso '+dt.datetime.fromtimestamp(self.timer.data['deadline']).strftime('%H:%M')) if self.timer.data['mode']=='away' else 'Temporizador / '+self.countdown()
+            y=260+i*44
+            self.text('weatherlabel'+str(i),464,y,136,40,2,title,c['muted'],c['bg'])
+            self.text('weathervalue'+str(i),600,y,168,40,0,self.fit(value,168,0),c['ink'],c['bg'],2)
+        self.text('musiceyebrow',32,282,364,26,2,'TU MUSICA' if music['status']=='playing' else 'SPOTIFY CONNECT',c['mint'],c['bg'])
+        self.paragraph('homesong',32,316,364,music['title'] if music['status']=='playing' else 'Un poco de musica.',2,0)
+        detail=music['artist'] if music['status']=='playing' else 'Toca para abrir el reproductor'
+        if self.timer.data['deadline'] is not None: detail='Temporizador / '+self.countdown()
         elif self.alarm.data['enabled']: detail='Alarma / '+dt.datetime.fromtimestamp(self.alarm.data['deadline']).strftime('%H:%M')
-        self.text('homedetail',32,398,736,24,2,self.fit(detail,736),c['muted'],c['bg'])
+        self.text('homedetail',32,398,364,24,2,self.fit(detail,364),c['muted'],c['bg'])
 
     def draw_away(self,repos):
         c=self.theme; deadline=self.timer.data['deadline']
@@ -140,31 +143,35 @@ class EditorialViews:
 
     def draw_away_setup(self):
         c=self.theme; away=self.timer.data['mode']=='away'
-        for i,v in enumerate([5,15,30,60,120]):
-            self.soft_button('preset'+str(i),24+i*150,82,144,48,str(v)+' min',away and self.timer.data['duration']==v*60)
-        self.text('awaytitle',24,147,752,30,2,'¿EN CUANTO TIEMPO VUELVES?',c['muted'],c['bg'],1)
-        self.digital('awaytime',24,183,752,66,self.countdown() if away else '30:00',1,c['ink'],c['bg'])
-        self.button('awaystart',24,256,366,52,'Estoy fuera',True)
-        self.button('awayreset',410,256,366,52,'Reiniciar')
-        for i,v in enumerate(['-5 min','-1 min','+1 min','+5 min']): self.button('awayadjust'+str(i),24+i*188,334,180,52,v)
-        self.text('return',24,393,752,24,2,'Se muestra tu regreso, se bloquea el panel y se detiene Spotify.',c['muted'],c['bg'],1)
+        seconds=self.timer.remaining() if away else 1800
+        self.text('awaytitle',32,83,736,45,0,'¿En cuanto tiempo vuelves?',c['ink'],c['bg'],1)
+        self.duration_picker('away',seconds,[(15,'15 min'),(30,'30 min'),(60,'1 hora')])
+        self.soft_button('awaystart',240,342,320,56,'Estoy fuera',True,0)
+        self.text('return',32,400,736,23,2,'Aviso de regreso · panel bloqueado · Spotify detenido',c['muted'],c['bg'],1)
 
     def draw_music(self,music):
-        c=self.theme; self.art('music',40,96,192)
-        self.paragraph('musictitle',280,82,496,music['title'],2,0)
-        self.text('musicartist',280,166,496,26,2,self.fit(music['artist'],496),c['muted'],c['bg'])
-        self.text('musiccontext',280,199,496,24,2,self.fit(music.get('context') or 'Spotify Connect',496),c['mint'],c['bg'])
+        c=self.theme; self.art('music',40,80,240)
+        self.paragraph('musictitle',320,76,448,music['title'],2,0)
+        self.text('musicartist',320,166,448,38,0,self.fit(music['artist'],448,0),c['muted'],c['bg'])
+        self.text('musiccontext',320,209,448,24,2,self.fit(music.get('context') or 'Spotify Connect',448),c['mint'],c['bg'])
         ms=position_ms(music); duration=music.get('duration',0)
-        self.text('tracktime',280,230,496,24,2,f'{int(ms)//60000}:{int(ms)//1000%60:02} / {duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'])
-        self.progress('trackprogress',280,259,496,ms/max(1,duration),c['mint'])
-        for i,title in enumerate(['Anterior','Pausar' if music['status']=='playing' else 'Reproducir','Siguiente']):
-            self.soft_button('music'+str(i),280+i*165,282,156,54,title,i==1,2)
-        self.soft_button('volminus',280,350,130,44,'Vol -')
-        self.text('volume',420,350,216,44,0,str(music['volume'])+' %',c['ink'],c['bg'],1)
-        self.soft_button('volplus',646,350,130,44,'Vol +')
-        options=music.get('options',{}); repeat=options.get('repeat','off')
-        self.soft_button('shuffle',280,400,236,24,'Aleatorio',options.get('shuffle',False),2)
-        self.soft_button('repeat',528,400,248,24,'Repetir / '+{'off':'No','context':'Lista','track':'Tema'}.get(repeat,'No'),repeat!='off',2)
-        self.text('playing',24,306,224,30,2,'REPRODUCIENDO' if music['status']=='playing' else 'EN PAUSA',c['mint'],c['bg'],1)
-        self.activity('music',88,375,music['status']=='playing',c['mint'],c['bg'])
-        self.text('nexttrack',24,389,224,23,2,self.fit('Luego / '+music['next_title'],224) if music.get('next_title') else 'Spotify Connect',c['muted'],c['bg'],1)
+        self.text('elapsed',320,238,140,24,2,f'{int(ms)//60000}:{int(ms)//1000%60:02}',c['muted'],c['bg'])
+        self.text('tracklength',628,238,140,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
+        self.progress('trackprogress',320,267,448,ms/max(1,duration),c['mint'])
+        for key,x,icon,selected in [('prev',434,'prev',False),('toggle',544,'pause' if music['status']=='playing' else 'play',True),('next',654,'next',False)]:
+            self.icon_button(key,x,319,34 if selected else 26,icon,selected)
+        self.text('playing',40,331,240,28,2,'REPRODUCIENDO' if music['status']=='playing' else 'EN PAUSA',c['mint'],c['bg'],1)
+        self.activity('music',113,387,music['status']=='playing',c['mint'],c['bg'])
+        self.text('volumelabel',320,373,84,30,2,'Volumen',c['muted'],c['bg'])
+        self.progress('volumeprogress',410,384,258,music['volume']/100,c['muted'])
+        self.text('volume',680,369,88,38,0,str(music['volume'])+'%',c['ink'],c['bg'],2)
+
+    def draw_music_options(self,music):
+        c=self.theme; options=music.get('options',{}); repeat=options.get('repeat','off')
+        self.text('optiontitle',48,86,704,48,0,'Tu reproduccion',c['ink'],c['bg'])
+        for i,(label,value) in enumerate([('Aleatorio','Activado' if options.get('shuffle') else 'Desactivado'),('Repetir',{'off':'No','context':'Lista','track':'Cancion'}.get(repeat,'No'))]):
+            y=159+i*72
+            self.text('optionlabel'+str(i),48,y,360,52,0,label,c['ink'],c['bg'])
+            self.soft_button('optionvalue'+str(i),488,y,264,52,value,False,0)
+        self.text('nextlabel',48,329,704,26,2,'A CONTINUACION',c['mint'],c['bg'])
+        self.text('nexttrack',48,362,704,42,0,self.fit(music.get('next_title') or 'La cola se controla desde Spotify',704,0),c['ink'],c['bg'])
