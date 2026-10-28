@@ -121,7 +121,7 @@ class DashboardViews:
             self.notice['title']=title
             self.notice['kind']=kind
         self.dirty=True; self.cache.clear(); self.artwork.clear(); self.art_key=None
-        if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'])
+        if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'],kind=kind)
 
     def poll_tools(self):
         changed=self.alarm.poll()
@@ -133,8 +133,8 @@ class DashboardViews:
             self.timer.data.update(deadline=None,remaining=0)
             self.save()
             if mode=='away':
-                self.compact=False
-                self.navigate('home' if self.unlocked else 'lock')
+                self.away_pending=True
+                self.save(); self.navigate('away')
             else:
                 self.compact=False
                 self.notify('Tiempo cumplido','timer')

@@ -46,3 +46,13 @@ Si solo fallan clima/GitHub, revisa conectividad, DNS y configuración; no neces
 ## Lectura bajo iluminación intensa
 
 El panel configura brillo al 100 % y utiliza contraste alto. Comprueba la lectura desde el ángulo habitual y evita que la luminaria se refleje directamente en el cristal. Cambiar colores no elimina reflejos ni aumenta la luminosidad máxima del hardware. Si los textos grandes se leen y los pequeños no, identifica la vista y el texto concreto para ajustar su tamaño sin reducir el resto de la información.
+
+## La canción aparece, pero no suena
+
+1. En Spotify del teléfono, selecciona Desk Hub Robotec como dispositivo de salida.
+2. Espera a que el panel deje de indicar sincronización o carga.
+3. Abre Estado y revisa Audio y Spotify. Una salida disponible y un flujo abierto no detectan un jack desconectado ni parlantes apagados.
+4. Si el traspaso queda detenido, pulsa Reconectar Spotify y selecciona el Hub nuevamente desde el teléfono.
+5. Comprueba el volumen de Spotify, el nivel general de PulseAudio y los parlantes. El nivel del aviso de alarma es independiente.
+
+No es necesario reiniciar la Pi para reconectar el receptor. Reconectar interrumpe la reproducción del Hub y mantiene la protección por PIN.

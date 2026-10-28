@@ -21,9 +21,10 @@ from soft_ui import SoftUI
 from dashboard_state import Alarm, AlertSound
 from dashboard_views import DashboardViews
 from music_client import MusicClient
-from music_state import position_ms
+from music_state import position_ms, control_ready
 from nextion_link import NextionLink
 from editorial_views import EditorialViews, PIN_X, PIN_Y, PIN_DX, PIN_DY
+from experience import Experience
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -95,10 +96,11 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
+        self.init_experience()
         self.ready = threading.Event()
         self.images = {}
         self.cover_cache=OrderedDict()
@@ -141,18 +143,30 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             self.watch = json.loads(row[0])
         row=self.db.execute("SELECT value FROM state WHERE key='alarm'").fetchone()
         if row: self.alarm=Alarm(json.loads(row[0]))
+        row=self.db.execute("SELECT value FROM state WHERE key='experience'").fetchone()
+        if row:
+            preferences=json.loads(row[0])
+            self.ambient_enabled=preferences.get('ambient_enabled',True)
+            self.away_label=preferences.get('away_label',0)%3
+            self.away_pending=preferences.get('away_pending',False)
+            self.away_return=preferences.get('away_return')
+        if self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
+            self.away_pending=True; self.away_return=self.timer.data['deadline']
+        self.music.update(is_active=False,logged_in=False,_ready=False,_epoch=0)
         self.alert_sound=AlertSound(self.directory,self.stop)
         if self.watch['started'] is not None: self.time_mode='watch'
         self.ready.set()
         threading.Thread(target=self.music_events,daemon=True).start()
         threading.Thread(target=self.cover_worker,daemon=True).start()
         threading.Thread(target=self.spotify_lifecycle,daemon=True).start()
-        self.lock_hub()
+        threading.Thread(target=self.system_worker,daemon=True).start()
+        self.lock_hub(away=self.away_pending)
 
     def save(self):
         super().save()
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('stopwatch',?)",(json.dumps(self.watch),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('alarm',?)",(json.dumps(self.alarm.data),))
+        self.db.execute("INSERT OR REPLACE INTO state VALUES ('experience',?)",(json.dumps(dict(ambient_enabled=self.ambient_enabled,away_label=self.away_label,away_pending=self.away_pending,away_return=self.away_return)),))
         self.db.commit()
 
     def worker(self):
@@ -181,7 +195,11 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             if not self.spotify_wake.is_set(): continue
             self.spotify_wake.clear()
             desired=self.spotify_desired
+            restart=self.spotify_restart; self.spotify_restart=False
             try:
+                if restart and desired:
+                    subprocess.run(['systemctl','--user','stop','desk-hub-spotify'],env=env,timeout=8,capture_output=True)
+                desired=self.spotify_desired
                 result=subprocess.run(['systemctl','--user','start' if desired else 'stop','desk-hub-spotify'],env=env,timeout=8,capture_output=True)
                 print('Spotify:',('habilitado' if desired else 'detenido') if result.returncode==0 else 'servicio no disponible',flush=True)
             except (OSError,subprocess.SubprocessError): print('Spotify: servicio no disponible',flush=True)
@@ -189,6 +207,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
 
     def lock_hub(self,away=False):
         self.unlocked=False
+        self.reset_music_session()
         self.spotify_desired=False
         self.marker.unlink(missing_ok=True)
         while not self.music_commands.empty():
@@ -203,6 +222,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
         if verify_pin(self.pin_entry,self.pin_record):
             if self.timer.data['mode']=='away':
                 self.timer.reset()
+                self.away_pending=False; self.away_return=None
                 self.save()
             self.marker.touch(mode=0o600)
             self.unlocked=True; self.pin_entry=''; self.pin_failures=0
@@ -228,14 +248,14 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             self.text(key,x,y,w,h,font,value,color,bg,align)
 
     def soft_button(self,key,x,y,w,h,value,selected=False,font=2):
-        fill=MINT if selected else BUTTON
-        style=(x,y,w,h,selected,font)
+        c=self.theme; fill=c['mint'] if selected else c['button']
+        style=(x,y,w,h,selected,font,fill,c['ink'],c['bg'])
         if self.cache.get('button:'+key)!=style:
             self.rounded(x,y,w,h,min(6,h//2-1),fill)
             self.cache['button:'+key]=style
             self.cache.pop(key,None)
         inset=min(14,max(3,h//4))
-        self.text(key,x+inset,y+(2 if h>=24 else 0),w-2*inset,h-4 if h>=24 else h,font,value,BG if selected else INK,fill,1)
+        self.text(key,x+inset,y+(2 if h>=24 else 0),w-2*inset,h-4 if h>=24 else h,font,value,c['bg'] if selected else c['ink'],fill,1)
 
     def button(self,key,x,y,w,h,value,selected=False):
         font=0 if h>=52 and self.text_width(value,0)<w-32 else 2
@@ -244,7 +264,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     def navigate(self,view):
         if not self.unlocked and view not in ('lock','away'): view='lock'
         self.screen=view
-        self.compact=(view=='away' and self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None) or (view=='time' and (self.watch['started'] is not None if self.time_mode=='watch' else self.time_mode!='alarm' and self.timer.data['deadline'] is not None and self.timer.data['mode']!='away'))
+        self.compact=(view=='away' and self.timer.data['mode']=='away' and (self.timer.data['deadline'] is not None or getattr(self,'away_pending',False))) or (view=='time' and (self.watch['started'] is not None if self.time_mode=='watch' else self.time_mode!='alarm' and self.timer.data['deadline'] is not None and self.timer.data['mode']!='away'))
         self.dirty=True
         self.cache.clear()
         self.artwork.clear()
@@ -267,7 +287,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             self.touch_notice(x,y); return
         if self.screen=='lock':
             if time.monotonic()<self.pin_wait: return
-            if 420<=y<464 and 32<=x<356 and self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
+            if 420<=y<464 and 32<=x<356 and self.timer.data['mode']=='away' and (self.timer.data['deadline'] is not None or getattr(self,'away_pending',False)):
                 self.navigate('away'); return
             if PIN_Y<=y<PIN_Y+4*PIN_DY and PIN_X<=x<PIN_X+3*PIN_DX:
                 row=(y-PIN_Y)//PIN_DY; col=(x-PIN_X)//PIN_DX
@@ -292,6 +312,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             return
         if not self.unlocked:
             return
+        if self.touch_experience(x,y): return
         if self.screen=='power':
             if 260<=y<330:
                 if x<400: self.navigate('home')
@@ -342,10 +363,11 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             elif 342<=y<398 and 240<=x<560:
                 if self.timer.data['mode']!='away':
                     self.timer.data=dict(mode='away',duration=1800,remaining=1800,deadline=None)
-                self.timer.toggle(); self.save(); self.carousel_started=time.monotonic()
+                self.timer.toggle(); self.away_pending=True; self.away_return=self.timer.data['deadline']; self.save(); self.carousel_started=time.monotonic()
                 self.lock_hub(away=True)
         elif self.screen in ('music','music_options'):
             with self.lock: m=self.music.copy()
+            if not control_ready(m): return
             command=None
             if self.screen=='music_options':
                 options=m.get('options',{})
@@ -358,9 +380,8 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
                     if (x-cx)**2+(y-319)**2<=(34 if cx==544 else 28)**2: command=[action]
             elif 365<=y<409 and 410<=x<668:
                 value=max(0,min(100,round((x-410)/258*100)))
-                with self.lock: self.music['volume']=value
                 command=['volume',str(value)]
-            if command: self.music_commands.put(command)
+            if command: self.queue_music(command)
         elif self.screen=='github' and 346 <= y < 394:
             with self.lock: count=len(self.repos)
             if count:
@@ -378,7 +399,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
         ident=(key,data[0] if key=='music' and data else bool(data))
         if ident==self.art_key: return
         self.art_key=ident; self.artwork.clear()
-        self.fill(x,y,size,size,BUTTON)
+        self.fill(x,y,size,size,self.theme['button'])
         if data:
             pixels=data[1] if key=='music' else data
             if key=='music' and len(pixels)==48*48:
@@ -389,7 +410,7 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
             else: self.artwork.extend(image_commands(pixels,x,y,size))
             self.art_started=time.monotonic(); self.art_total=len(self.artwork)
         else:
-            self.label('noart'+key,x,y,size,size,'ROBOTEC',0,MINT,BUTTON,1)
+            self.label('noart'+key,x,y,size,size,'ROBOTEC',0,self.theme['mint'],self.theme['button'],1)
 
     def flush_artwork(self):
         if not self.artwork: return
@@ -414,16 +435,33 @@ class Robotec(EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
         return f'{n//3600:02}:{n//60%60:02}:{n%60:02}' if n>=3600 else f'{n//60:02}:{n%60:02}'
 
     def progress(self,key,x,y,w,ratio,color=MINT):
-        self.delta_progress(key,x,y,w,ratio,color,BUTTON)
+        self.delta_progress(key,x,y,w,ratio,color,self.theme['button'])
+
+    def send(self,command):
+        drawing=getattr(self,'drawing',None)
+        if drawing is not None: drawing.append(command)
+        else: super().send(command)
 
     def render(self):
+        commands=[]; self.drawing=commands
+        try: self.render_view()
+        finally: self.drawing=None
+        if commands: self.send_batch(commands)
+
+    def render_view(self):
         self.poll_tools()
+        self.prepare_experience()
         if self.dirty: self.base()
         if self.notice:
             self.render_notice(); return
         with self.lock:
             n=self.network.copy(); m=self.music.copy(); repos=self.repos.copy()
         now=dt.datetime.now()
+        if not self.compact and self.screen not in ('lock','power','ambient','duration'):
+            self.draw_connection_badge()
+        if self.screen=='duration': self.draw_duration(); return
+        if self.screen=='ambient': self.draw_ambient(now,m); return
+        if self.screen=='status': self.draw_status(); return
         if self.screen=='lock':
             self.draw_lock(now); return
         if self.screen=='power':
@@ -521,6 +559,7 @@ def selftest():
     from desk_hub import selftest as original
     original()
     hub=Robotec.__new__(Robotec)
+    hub.init_experience(); hub.lock=threading.Lock(); hub.music={}
     hub.timer=Timer(); hub.save=lambda:None
     hub.change(-3600); assert hub.timer.remaining()==0
     hub.change(60); assert hub.timer.remaining()==60
@@ -565,4 +604,4 @@ if __name__=='__main__':
             hub.stop.set()
             if hub.music_event_process and hub.music_event_process.poll() is None:
                 hub.music_event_process.terminate()
-            hub.alert_sound.silence(); hub.db.close(); os.close(hub.fd)
+            hub.alert_sound.silence(); hub.alert_sound.thread.join(3); hub.db.close(); os.close(hub.fd)

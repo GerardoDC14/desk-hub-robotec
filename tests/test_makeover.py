@@ -47,9 +47,9 @@ class LayoutTests(unittest.TestCase):
             value.last_touch=0; value.touch(x,y)
         self.assertTrue(value.music_commands.empty())
         value.last_touch=0; value.touch(544,319)
-        self.assertEqual(value.music_commands.get_nowait(),['play'])
+        self.assertEqual(value.music_commands.get_nowait()['command'],['play'])
         value.last_touch=0; value.touch(539,385)
-        self.assertEqual(value.music_commands.get_nowait(),['volume','50'])
+        self.assertEqual(value.music_commands.get_nowait()['command'],['volume','50'])
 
     def test_alarm_field_selection_and_volume_do_not_change_spotify(self):
         value=hub(); value.time_mode='alarm'; value.alarm.data.update(hour=23,minute=59)
@@ -67,7 +67,7 @@ class LayoutTests(unittest.TestCase):
         value.alert_sound.play.assert_called_with(seconds=5,volume=80)
         value.unlocked=False; value.screen='lock'; value.last_touch=0
         value.notify('Es la hora','alarm')
-        value.alert_sound.play.assert_called_with(seconds=180,volume=80)
+        value.alert_sound.play.assert_called_with(seconds=180,volume=80,kind="alarm")
         value.touch(500,290)
         value.alert_sound.silence.assert_called_once()
         self.assertTrue(value.alarm.data['enabled']); self.assertFalse(value.unlocked)
@@ -93,7 +93,7 @@ class AudioTests(unittest.TestCase):
             def __enter__(self): return self
             def __exit__(self,*args): pass
             def poll(self): return 0
-        with tempfile.TemporaryDirectory() as directory, patch('dashboard_state.shutil.which',return_value='/usr/bin/paplay'), patch('dashboard_state.subprocess.Popen',Process), patch('dashboard_state.os.getuid',return_value=1000,create=True), patch.object(AlertSound,'REPEAT_GAP',.01):
+        with tempfile.TemporaryDirectory() as directory, patch('dashboard_state.shutil.which',return_value='/usr/bin/paplay'), patch('dashboard_state.subprocess.Popen',Process), patch('dashboard_state.os.getuid',return_value=1000,create=True), patch.object(AlertSound,'REPEAT_GAP',.01), patch('dashboard_state.MusicDuck'):
             stop=threading.Event(); sound=AlertSound(directory,stop)
             try:
                 sound.play(seconds=1,volume=70)
@@ -109,7 +109,7 @@ class AudioTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch('dashboard_state.threading.Thread'), patch('dashboard_state.time.monotonic',return_value=10):
             sound=AlertSound(directory,threading.Event()); sound.play(seconds=9999,volume=999)
             request=sound.request
-            self.assertEqual(request[1:],(190,100))
+            self.assertEqual(request[1:],(190,100,'alarm'))
             self.assertTrue(sound.active(request)); sound.silence(); self.assertFalse(sound.active(request))
 
 

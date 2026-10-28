@@ -60,7 +60,7 @@ No confundas ese nivel con el volumen de Spotify. Si no aparece el jack, comprue
 
 Con las unidades instaladas, desbloquea el panel y selecciona Desk Hub Robotec en Spotify desde un teléfono o PC en la misma red. Inicia una canción y entra en la pestaña Spotify de Nextion. Al bloquear o activar Fuera, el receptor se detiene y corta la reproducción. Puede tardar unos segundos en desaparecer de la lista de dispositivos del teléfono.
 
-El PIN habilita el receptor completo, no una autorización por persona de Spotify Connect. Una vez desbloqueado, las conexiones se rigen por Spotify y la red local. Comparte el PIN solo con personas de confianza.
+Cada visitante puede seleccionar el receptor desde su propia cuenta de Spotify; la clave que arranca Soloist es independiente de la sesión Connect. El PIN habilita el receptor completo, no una autorización por persona de Spotify Connect. Una vez desbloqueado, las conexiones se rigen por Spotify y la red local. Comparte el PIN solo con personas de confianza.
 
 Para revisar problemas:
 
@@ -77,3 +77,13 @@ La consulta CLI requiere el panel desbloqueado y Soloist activo. Si la compilaci
 El botón circular central alterna los símbolos de reproducir y pausa, con el mismo tamaño. A sus lados están anterior y siguiente. La barra bajo el título permite avanzar o retroceder; la barra Volumen cambia el nivel directamente al tocarla. En Opciones, Aleatorio activa/desactiva mezcla y Repetir recorre No, Lista y Canción. Volver regresa al reproductor. El indicador de barras es decorativo y no mide el sonido real. La posición se interpola localmente entre eventos; no requiere consultar Spotify por cada movimiento visual.
 
 La portada usa vista rápida, refinamiento y caché en memoria. Volver a una canción conocida evita descargarla de nuevo, pero todavía hay que dibujarla en Nextion. El color y resolución son reducidos por el enlace UART. La API pública de [Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api) no documenta letras de canciones; esta integración no las presenta.
+
+## Cambio entre teléfono y Hub
+
+Selecciona Desk Hub Robotec desde Spotify para enviarle la reproducción. El panel espera a que Spotify confirme que el Hub es el dispositivo activo y entregue un estado completo antes de habilitar sus controles. Puede mostrar Esperando conexión, Elige el Hub en Spotify, Sincronizando o Cargando audio. La posición no avanza por interpolación mientras otro dispositivo esté activo.
+
+Los estados de reproducción y de dispositivo activo son distintos en la [API de Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api). Las respuestas de consultas anteriores se descartan si ya llegaron eventos más recientes; las órdenes de una sesión o canción anterior no se reutilizan. Las órdenes pendientes caducan después de dos segundos. La aplicación no activa el receptor automáticamente para quitarle la reproducción al teléfono.
+
+Si la canción aparece pero no hay sonido, revisa Estado: debe haber una salida por jack y un flujo de audio abierto. La existencia del flujo es una comprobación de software y no confirma que los parlantes físicos estén encendidos. Usa Reconectar Spotify y vuelve a seleccionar el Hub en el teléfono si el traspaso no termina.
+
+El reproductor y la vista ambiental toman un color predominante de la portada para el fondo y el acento, manteniendo texto claro. Los títulos que no caben se desplazan lentamente después de una pausa inicial. Los cambios de color ocurren cuando la portada nueva está disponible, conservando el fondo durante su descarga.

@@ -24,13 +24,14 @@ class Sound:
 
 def hub():
     value=Robotec.__new__(Robotec)
+    value.init_experience()
     value.cache={}; value.artwork=deque(); value.art_key=None; value.images={}
     value.lock=threading.Lock(); value.screen='time'; value.compact=False; value.dirty=True
     value.unlocked=True; value.notice=None; value.pin_entry=''; value.pin_wait=0; value.pin_message='PIN'
     value.time_mode='timer'; value.watch={'elapsed':0,'started':None}; value.timer=Timer()
     value.alarm=Alarm(); value.alert_sound=Sound(); value.repos=[]
     value.network={'weather':'28 °C','condition':'Zapopan','weather_code':0}
-    value.music={'title':'Titulo','artist':'Artista','status':'paused','volume':30,'duration':200000}
+    value.music={'title':'Titulo','artist':'Artista','status':'paused','volume':30,'duration':200000,'is_active':True,'logged_in':True,'_ready':True,'uri':'track-a'}
     value.last_touch=0; value.music_commands=queue.Queue(); value.save=lambda:None
     value.cover_cache=OrderedDict(); value.cover_requested=None; value.image_jobs=queue.Queue()
     value.send=lambda command:None
@@ -120,11 +121,11 @@ class ToolsTests(unittest.TestCase):
 
     def test_seek_and_shuffle_are_queued(self):
         value=hub(); value.screen='music'; value.touch(544,267)
-        self.assertEqual(value.music_commands.get_nowait(),['seek','100000'])
+        self.assertEqual(value.music_commands.get_nowait()['command'],['seek','100000'])
         value.last_touch=0; value.touch(700,32)
         self.assertEqual(value.screen,'music_options')
         value.last_touch=0; value.touch(600,180)
-        self.assertEqual(value.music_commands.get_nowait(),['shuffle','on'])
+        self.assertEqual(value.music_commands.get_nowait()['command'],['shuffle','on'])
 
     def test_stopwatch_lap_preserves_running_state(self):
         value=hub(); value.time_mode='watch'; value.watch.update(started=10)

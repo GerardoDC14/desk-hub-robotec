@@ -4,7 +4,8 @@ import math
 import time
 from nextion_link import safe_text
 from settings import GITHUB_USER, LOCATION
-from music_state import position_ms
+from music_state import position_ms, control_ready
+from experience import AWAY_LABELS
 
 TABS = [('home','Inicio'),('time','Tiempo'),('away','Fuera'),('music','Spotify')]
 PIN_X, PIN_Y, PIN_DX, PIN_DY = 416,116,112,70
@@ -33,9 +34,11 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
-        if not self.compact and self.screen not in ('lock','power'):
-            self.text('brand',32,14,394,32,2,'ROBOTEC  /  DESK HUB',c['ink'],c['bg'])
-            if self.screen=='home':
+        if not self.compact and self.screen not in ('lock','power','ambient','duration'):
+            self.text('brand',32,14,178,32,2,'ROBOTEC / DESK HUB',c['ink'],c['bg'])
+            self.draw_connection_badge()
+            if self.screen=='status': self.text_action('statusback',632,12,136,40,'Volver')
+            elif self.screen=='home':
                 self.text_action('lockmanual',504,12,120,40,'Bloquear')
                 self.text_action('power',648,12,120,40,'Apagar')
             elif self.screen in ('music','music_options'):
@@ -69,7 +72,7 @@ class EditorialViews:
         for row,values in enumerate([['1','2','3'],['4','5','6'],['7','8','9'],['Borrar','0','Entrar']]):
             for col,title in enumerate(values):
                 self.soft_button('pin'+title,PIN_X+col*PIN_DX,PIN_Y+row*PIN_DY,104,62,title,title=='Entrar',0 if title.isdigit() else 2)
-        if self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
+        if self.timer.data['mode']=='away' and (self.timer.data['deadline'] is not None or getattr(self,'away_pending',False)):
             self.soft_button('backaway',32,420,324,44,'Ver aviso de regreso')
 
     def draw_home(self,now,network,music,kind):
@@ -96,20 +99,21 @@ class EditorialViews:
             y=260+i*44
             self.text('weatherlabel'+str(i),464,y,136,40,2,title,c['muted'],c['bg'])
             self.text('weathervalue'+str(i),600,y,168,40,0,self.fit(value,168,0),c['ink'],c['bg'],2)
-        self.text('musiceyebrow',32,282,364,26,2,'TU MUSICA' if music['status']=='playing' else 'SPOTIFY CONNECT',c['mint'],c['bg'])
-        self.paragraph('homesong',32,316,364,music['title'] if music['status']=='playing' else 'Un poco de musica.',2,0)
-        detail=music['artist'] if music['status']=='playing' else 'Toca para abrir el reproductor'
+        self.text('musiceyebrow',32,282,364,26,2,'TU MUSICA' if music['status']=='playing' and music.get('is_active',False) else 'SPOTIFY CONNECT',c['mint'],c['bg'])
+        self.paragraph('homesong',32,316,364,music['title'] if music['status']=='playing' and music.get('is_active',False) else 'Un poco de musica.',2,0)
+        detail=music['artist'] if music['status']=='playing' and music.get('is_active',False) else 'Toca para abrir el reproductor'
         if self.timer.data['deadline'] is not None: detail='Temporizador / '+self.countdown()
         elif self.alarm.data['enabled']: detail='Alarma / '+dt.datetime.fromtimestamp(self.alarm.data['deadline']).strftime('%H:%M')
         self.text('homedetail',32,398,364,24,2,self.fit(detail,364),c['muted'],c['bg'])
 
     def draw_away(self,repos):
-        c=self.theme; deadline=self.timer.data['deadline']
-        self.text('awayheading',32,13,512,40,0,'Estoy fuera.',c['ink'],c['bg'])
+        c=self.theme; deadline=self.timer.data['deadline'] or getattr(self,'away_return',None) or time.time()
+        pending=self.timer.data['deadline'] is None
+        self.text('awayheading',32,13,512,40,0,AWAY_LABELS[getattr(self,'away_label',0)]+'.',c['ink'],c['bg'])
         self.text('awaystatus',560,18,208,30,2,'SPOTIFY ACTIVO' if self.unlocked else 'SPOTIFY DESACTIVADO',c['muted'],c['bg'],2)
-        self.text('awayreturnlabel',32,83,350,40,0,'VUELVO A LAS',c['coral'],c['bg'])
+        self.text('awayreturnlabel',32,83,350,40,0,'REGRESO PENDIENTE' if pending else 'VUELVO A LAS',c['coral'],c['bg'])
         self.digital('awayreturn',24,132,366,142,dt.datetime.fromtimestamp(deadline).strftime('%H:%M'),3,c['ink'],c['bg'])
-        remaining='Faltan '+self.countdown()
+        remaining='Hora prevista' if pending else 'Faltan '+self.countdown()
         self.text('awaycount',32,287,224,40,0 if self.text_width(remaining,0)<=224 else 2,remaining,c['coral'],c['bg'])
         self.progress('awayprogress',32,345,216,1-self.timer.remaining()/max(1,self.timer.data['duration']),c['coral'])
         self.text('awayprofile',32,362,224,28,2,'github.com/'+GITHUB_USER,c['muted'],c['bg'])
@@ -144,14 +148,16 @@ class EditorialViews:
     def draw_away_setup(self):
         c=self.theme; away=self.timer.data['mode']=='away'
         seconds=self.timer.remaining() if away else 1800
-        self.text('awaytitle',32,83,736,45,0,'¿En cuanto tiempo vuelves?',c['ink'],c['bg'],1)
+        self.text('awaytitle',32,78,736,45,0,'¿En cuanto tiempo vuelves?',c['ink'],c['bg'],1)
+        self.text_action('awayreason',32,124,736,32,AWAY_LABELS[getattr(self,'away_label',0)]+' / cambiar',True)
         self.duration_picker('away',seconds,[(15,'15 min'),(30,'30 min'),(60,'1 hora')])
         self.soft_button('awaystart',240,342,320,56,'Estoy fuera',True,0)
         self.text('return',32,400,736,23,2,'Aviso de regreso · panel bloqueado · Spotify detenido',c['muted'],c['bg'],1)
 
     def draw_music(self,music):
         c=self.theme; self.art('music',40,80,240)
-        self.paragraph('musictitle',320,76,448,music['title'],2,0)
+        title=self.scrolling_title('music',music['title'],448,0)
+        self.text('musictitle',320,80,448,72,0,title,c['ink'],c['bg'])
         self.text('musicartist',320,166,448,38,0,self.fit(music['artist'],448,0),c['muted'],c['bg'])
         self.text('musiccontext',320,209,448,24,2,self.fit(music.get('context') or 'Spotify Connect',448),c['mint'],c['bg'])
         ms=position_ms(music); duration=music.get('duration',0)
@@ -159,9 +165,9 @@ class EditorialViews:
         self.text('tracklength',628,238,140,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
         self.progress('trackprogress',320,267,448,ms/max(1,duration),c['mint'])
         for key,x,icon,selected in [('prev',434,'prev',False),('toggle',544,'pause' if music['status']=='playing' else 'play',True),('next',654,'next',False)]:
-            self.icon_button(key,x,319,34 if selected else 26,icon,selected)
-        self.text('playing',40,331,240,28,2,'REPRODUCIENDO' if music['status']=='playing' else 'EN PAUSA',c['mint'],c['bg'],1)
-        self.activity('music',113,387,music['status']=='playing',c['mint'],c['bg'])
+            self.icon_button(key,x,319,34 if selected else 26,icon,selected and control_ready(music))
+        self.text('playing',32,331,256,42,2,self.fit(self.music_label(music),256),c['mint'],c['bg'],1)
+        self.activity('music',113,387,music['status']=='playing' and control_ready(music),c['mint'],c['bg'])
         self.text('volumelabel',320,373,84,30,2,'Volumen',c['muted'],c['bg'])
         self.progress('volumeprogress',410,384,258,music['volume']/100,c['muted'])
         self.text('volume',680,369,88,38,0,str(music['volume'])+'%',c['ink'],c['bg'],2)

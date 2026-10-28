@@ -2,9 +2,9 @@
 
 ## Temporizador
 
-Elige 5 minutos de descanso, 25 de enfoque o una hora con los accesos bajo la cifra central. Los botones − y + ajustan un minuto por toque, entre 1 minuto y 24 horas. Iniciar presenta una vista de cuenta grande. Pausar conserva lo restante; Continuar reanuda la cuenta y Reiniciar devuelve la duración configurada. Al pausar se muestran también los segundos restantes. El temporizador comparte estado con Fuera: definir una nueva duración sustituye la cuenta anterior.
+Elige 5 minutos de descanso, 25 de enfoque o una hora con los accesos bajo la cifra central. Los botones − y + ajustan un minuto por toque, entre 1 minuto y 24 horas. Toca la cifra central para introducir una duración exacta de 1 a 1440 minutos y pulsa Guardar; esto prepara la cuenta sin iniciarla. Cancelar conserva la duración anterior. Iniciar presenta una vista de cuenta grande. Pausar conserva lo restante; Continuar reanuda la cuenta y Reiniciar devuelve la duración configurada. Al pausar se muestran también los segundos restantes. El temporizador comparte estado con Fuera: definir una nueva duración sustituye la cuenta anterior.
 
-Al terminar aparece Tiempo cumplido y el aviso se repite hasta pulsar Detener, durante un máximo de treinta segundos. El sonido utiliza `paplay` de PulseAudio, no Spotify. Funciona sin red si el audio y servicio están disponibles.
+Al terminar aparece Tiempo cumplido y el aviso se repite hasta pulsar Detener, durante un máximo de treinta segundos. El temporizador tiene una secuencia de dos tonos y la alarma una secuencia de tres. El sonido utiliza `paplay` de PulseAudio. Durante el aviso se reduce temporalmente el flujo de Soloist; se restaura su nivel al detenerlo, posponerlo o vencer su límite de sonido, siempre que no se haya cambiado manualmente. Funciona sin red si el audio y servicio están disponibles.
 
 ## Cronómetro
 

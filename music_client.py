@@ -5,13 +5,41 @@ import queue
 import select
 import subprocess
 import time
-from music_state import apply_event
+from music_state import apply_event, control_ready
 from settings import SOLOIST
 
 
 class MusicClient:
-    def accept_music(self,event):
+    def reset_music_session(self):
         with self.lock:
+            self.music_session=getattr(self,'music_session',0)+1
+            self.music.update(is_active=False,logged_in=False,_ready=False,_epoch=self.music.get('_epoch',0)+1)
+            self.music_stream_online=False
+        while not self.music_commands.empty():
+            try: self.music_commands.get_nowait()
+            except queue.Empty: break
+
+    def queue_music(self,command):
+        with self.lock:
+            if not self.unlocked or not control_ready(self.music): return False
+            envelope=dict(command=command,created=time.monotonic(),session=getattr(self,'music_session',0),epoch=self.music.get('_epoch',0),uri=self.music.get('uri',''))
+        self.music_commands.put(envelope)
+        return True
+
+    def command_current(self,envelope):
+        with self.lock:
+            return (self.unlocked and control_ready(self.music) and time.monotonic()-envelope['created']<2
+                    and envelope['session']==getattr(self,'music_session',0) and envelope['epoch']==self.music.get('_epoch',0)
+                    and (envelope['command'][0] not in ('seek','next','prev','play','pause') or envelope['uri']==self.music.get('uri','')))
+
+    def accept_music(self,event,token=None,session=None):
+        with self.lock:
+            if session is not None and session!=getattr(self,'music_session',0): return False
+            if token is not None and token!=getattr(self,'music_revision',0): return False
+            if event.get('type') in ('auth_state','device_changed') and hasattr(self,'music_refresh'):
+                self.music_refresh.set()
+            self.last_music_seen=time.monotonic()
+            if event.get('type')!='queue_changed': self.music_revision=getattr(self,'music_revision',0)+1
             previous = self.music.get('cover')
             apply_event(self.music,event)
             cover = self.music.get('cover')
@@ -40,11 +68,12 @@ class MusicClient:
                 self.stop.wait(.2)
                 continue
             process = None
+            session=getattr(self,'music_session',0)
             try:
                 process = subprocess.Popen([SOLOIST,'ctl','-w','127.0.0.1:9090','trace'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
                 self.music_event_process = process
                 buffer = b''
-                while not self.stop.is_set() and self.unlocked and process.poll() is None:
+                while not self.stop.is_set() and self.unlocked and session==getattr(self,'music_session',0) and process.poll() is None:
                     if not select.select([process.stdout],[],[],.15)[0]:
                         continue
                     chunk = os.read(process.stdout.fileno(),65536)
@@ -57,12 +86,14 @@ class MusicClient:
                         if start<0: continue
                         try: event = json.loads(line[start:])
                         except ValueError: continue
-                        self.music_stream_online = True
-                        self.accept_music(event)
+                        with self.lock:
+                            if session==getattr(self,'music_session',0): self.music_stream_online=True
+                        self.accept_music(event,session=session)
             except (OSError,ValueError):
                 pass
             finally:
-                self.music_stream_online = False
+                with self.lock:
+                    if session==getattr(self,'music_session',0): self.music_stream_online=False
                 self.music_event_process = None
                 if process and process.poll() is None:
                     process.terminate()
@@ -72,29 +103,34 @@ class MusicClient:
 
     def music_worker(self):
         self.ready.wait()
-        next_poll = next_queue = 0
+        next_poll=next_queue=0
         while not self.stop.is_set():
-            try: command = self.music_commands.get(timeout=.1)
-            except queue.Empty: command = None
-            if not self.unlocked:
-                continue
+            try: envelope=self.music_commands.get(timeout=.1)
+            except queue.Empty: envelope=None
+            if not self.unlocked: continue
             try:
-                if command:
-                    subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090',*command],timeout=3,capture_output=True,check=True)
-                    if not self.music_stream_online: next_poll = 0
+                if envelope and self.command_current(envelope):
+                    subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090',*envelope['command']],timeout=3,capture_output=True,check=True)
+                    # La confirmacion de la orden no equivale al cambio de reproduccion.
+                    next_poll=0
+                refresh=getattr(self,'music_refresh',None)
+                if refresh and refresh.is_set(): refresh.clear(); next_poll=0
                 if time.monotonic()>=next_poll:
-                    result = subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','now','--json'],timeout=3,capture_output=True,check=True)
-                    self.accept_music(json.loads(result.stdout))
-                    next_poll = time.monotonic()+(30 if self.music_stream_online else 1)
-                if self.screen=='music' and time.monotonic()>=next_queue:
-                    result = subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','queue','1','--json'],timeout=3,capture_output=True,check=True)
-                    event = json.loads(result.stdout)
-                    event['type'] = 'queue_changed'
-                    self.accept_music(event)
-                    next_queue = time.monotonic()+15
+                    with self.lock:
+                        token=getattr(self,'music_revision',0); session=getattr(self,'music_session',0)
+                    result=subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','now','--json'],timeout=3,capture_output=True,check=True)
+                    self.accept_music(json.loads(result.stdout),token=token,session=session)
+                    with self.lock: ready=control_ready(self.music)
+                    next_poll=time.monotonic()+(15 if self.music_stream_online and ready else 1)
+                if self.screen in ('music','music_options') and time.monotonic()>=next_queue:
+                    with self.lock:
+                        token=getattr(self,'music_revision',0); session=getattr(self,'music_session',0)
+                    result=subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','queue','1','--json'],timeout=3,capture_output=True,check=True)
+                    event=json.loads(result.stdout); event['type']='queue_changed'
+                    self.accept_music(event,token=token,session=session)
+                    next_queue=time.monotonic()+15
             except (OSError,subprocess.SubprocessError,ValueError):
-                next_poll = time.monotonic()+3
-                next_queue = time.monotonic()+15
+                next_poll=time.monotonic()+3; next_queue=time.monotonic()+15
 
     def cover_worker(self):
         while not self.stop.is_set():
