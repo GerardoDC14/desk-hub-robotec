@@ -34,6 +34,11 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
+        if self.screen=='gallery':
+            self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
+            self.draw_connection_badge()
+            self.soft_button('galleryback',632,12,136,40,'Cámara')
+            self.dirty=False; return
         if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
             self.draw_connection_badge()

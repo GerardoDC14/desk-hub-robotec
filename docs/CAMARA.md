@@ -1,6 +1,6 @@
-# Cámara: fotos y timelapse
+# Cámara: fotos, timelapse y galería
 
-La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Estado → Cámara**. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
+La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Estado → Cámara**. Su galería muestra las fotos guardadas y permite crear copias con efectos. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
 
 ## Conectar una cámara a la Pi 3 B
 
@@ -42,7 +42,37 @@ Elige un intervalo de **10, 30 o 60 segundos** y una secuencia de **12, 30 o 60 
 
 **Detener timelapse** termina la secuencia. Bloquear el panel también cancela capturas pendientes y en curso; no se reanudan automáticamente al desbloquear o reiniciar. Iniciar Fuera bloquea el panel y detiene la secuencia. Para un timelapse largo, ajusta previamente los tiempos en **Estado → Pantalla y bloqueo** y vuelve a bloquear el Hub cuando termines. Entrar en Cámara o arrancar el servicio no toma fotos.
 
-El almacenamiento está limitado a **100 imágenes o 250 MiB**. Cada captura necesita un margen de 8 MiB dentro de ese límite; al agotarlo, la secuencia se detiene. No se borran fotos automáticamente. Revisa el espacio disponible antes de comenzar y copia las imágenes que quieras conservar para liberar espacio cuando sea necesario. El límite de la aplicación no sustituye la comprobación de espacio libre de la microSD.
+El almacenamiento está limitado a **100 imágenes o 250 MiB**, contando fotos originales y copias con efectos. Cada captura o copia necesita un margen de 8 MiB dentro de ese límite; al agotarlo, la operación se detiene. No se borran fotos automáticamente. Revisa el espacio disponible antes de comenzar y copia las imágenes que quieras conservar para liberar espacio cuando sea necesario. El límite de la aplicación no sustituye la comprobación de espacio libre de la microSD.
+
+## Galería y efectos
+
+La galería es compartida en el dispositivo: cualquier persona que desbloquee el panel puede ver las fotos guardadas.
+
+![Galería con una imagen de demostración](images/gallery.png)
+
+![Vista previa del efecto Negativo](images/gallery-negative.png)
+
+Vistas reconstruidas con una imagen sintética de demostración y tipografía aproximada; no muestran fotografías tomadas en el laboratorio.
+
+Abre **Estado → Cámara → Galería** con el panel desbloqueado. **Anterior** y **Siguiente** recorren las imágenes guardadas; debajo aparece el nombre de la foto seleccionada. Si todavía no hay fotos, vuelve a Cámara y toma una. Consultar la galería no inicia la cámara ni captura imágenes.
+
+Elige un efecto a la derecha para previsualizarlo:
+
+| Opción | Resultado |
+|---|---|
+| Original | Foto sin efecto |
+| B/N | Blanco y negro |
+| Sepia | Tonos cálidos |
+| Negativo | Colores invertidos |
+| Pop | Color más intenso |
+| Espejo | Reflejo horizontal |
+| Boceto | Aspecto de dibujo |
+
+Cambiar de efecto solo modifica la vista previa. **Guardar copia** crea un JPEG nuevo con el efecto elegido; el original permanece intacto. Selecciona un efecto distinto de Original para guardar. La copia conserva las dimensiones de la foto de origen: las capturas del Hub son de 1280 × 720 píxeles. Antes de guardarla, espera a que termine una captura manual o detén el timelapse.
+
+Las copias se guardan en la misma carpeta con nombres que empiezan por `efecto-`; las capturas comienzan por `foto-`. Ambas aparecen en la galería y cuentan para el límite de almacenamiento. Comprueba el mensaje de resultado antes de solicitar otra copia. El botón **Cámara** regresa a los controles de captura.
+
+Nextion presenta una vista reducida que se dibuja progresivamente por UART. Puede tardar varios segundos en completarse y no representa el detalle del JPEG guardado; copia el archivo al ordenador para revisarlo a tamaño completo. Esta vista recorre fotos existentes, no es una vista en directo de la cámara. Bloquear limpia la vista previa y cancela trabajos pendientes de galería; las imágenes ya guardadas se conservan.
 
 ## Copiar las imágenes
 

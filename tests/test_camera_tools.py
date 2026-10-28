@@ -204,6 +204,14 @@ class CameraTests(unittest.TestCase):
             self.assertFalse(controller.start_timelapse(interval,count,unlocked=True))
         self.assertEqual(runner.calls, [])
 
+    def test_gallery_export_reservation_prevents_overlapping_capture(self):
+        controller,runner=self.controller()
+        with controller._cv: controller._editing=True
+        self.assertFalse(controller.capture(unlocked=True))
+        self.assertFalse(controller.probe(unlocked=True))
+        self.assertFalse(controller.start_timelapse(10,12,unlocked=True))
+        self.assertTrue(controller.snapshot()['busy']); self.assertEqual(runner.calls,[])
+
     def test_photo_count_cap_refuses_to_open_camera(self):
         controller, runner = self.controller()
         for i in range(100): (controller.directory/f'photo-{i}.jpg').write_bytes(b'x')
@@ -273,7 +281,7 @@ class CameraViewTests(unittest.TestCase):
             key,x,y,w,h=args[:5]
             self.assertGreaterEqual(x,0); self.assertLessEqual(x+w,800)
             self.assertGreaterEqual(y,76); self.assertLessEqual(y+h,424)
-        self.assertEqual(len([c for c in view.commands if c[0]=='button']),9)
+        self.assertEqual(len([c for c in view.commands if c[0]=='button']),10)
 
     def test_long_status_uses_smaller_font_and_fits_without_clipping(self):
         view=self.View()
@@ -291,6 +299,10 @@ class CameraViewTests(unittest.TestCase):
         self.assertFalse(view.touch_camera(50,220)); self.assertEqual(view.camera.calls,[])
         view.camera=None; view.unlocked=True
         self.assertFalse(view.touch_camera(50,220)); view.draw_camera()
+
+    def test_gallery_opens_from_a_visible_button_without_capturing(self):
+        view=self.View(); self.assertTrue(view.touch_camera(500,350))
+        self.assertEqual(view.routes,['gallery']); self.assertEqual(view.camera.calls,[])
 
     def test_presets_and_actions_match_hit_areas(self):
         view=self.View()

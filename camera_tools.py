@@ -45,7 +45,7 @@ class CameraController:
         self.executable = which('rpicam-still') or which('libcamera-still')
         self._popen = popen; self._clock = clock; self._wall_clock = wall_clock
         self._cv = threading.Condition(threading.RLock())
-        self._closed = False; self._job = None; self._busy = False; self._process = None
+        self._closed = False; self._job = None; self._busy = False; self._process = None; self._editing = False
         self._generation = 0; self._sequence = None; self._next_due = None
         self._connected = None; self._last_filename = ''; self._error = ''
         self._completed = 0; self._requested = 0; self._usage_cache = None
@@ -62,7 +62,7 @@ class CameraController:
                 self._usage_cache = cached
             _, files, size = cached
             return dict(status=self._status, connected=self._connected,
-                        available=bool(self.executable), busy=self._busy or self._job is not None,
+                        available=bool(self.executable), busy=self._busy or self._job is not None or self._editing,
                         timelapse=self._sequence is not None, completed=self._completed,
                         requested=self._requested, last_filename=self._last_filename,
                         error=self._error, photo_count=files, storage_bytes=size,
@@ -85,7 +85,7 @@ class CameraController:
 
     def _enqueue(self, kind, unlocked):
         with self._cv:
-            if not unlocked or self._closed or self._busy or self._job or self._sequence:
+            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing:
                 return False
             if not self.executable:
                 self._status = 'Instala rpicam-apps para usar la cámara'; return False
@@ -102,7 +102,7 @@ class CameraController:
     def start_timelapse(self, interval=30, count=12, unlocked=False):
         if interval not in INTERVALS or count not in COUNTS: return False
         with self._cv:
-            if not unlocked or self._closed or self._busy or self._job or self._sequence:
+            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing:
                 return False
             if not self.executable:
                 self._status = 'Instala rpicam-apps para usar la cámara'; return False
@@ -266,8 +266,7 @@ class CameraViews:
         for i,value in enumerate(COUNTS):
             self.soft_button('cameracount'+str(value),532+i*80,272,76,36,str(value),count==value,2)
         self.soft_button('cameratimelapse',32,326,344,52,'Detener timelapse' if state['timelapse'] else 'Iniciar timelapse',state['timelapse'],0)
-        last = state['last_filename'] or 'Todavía no hay fotos'
-        self.text('cameralast',408,326,360,52,2,last,c['ink'],c['bg'])
+        self.soft_button('cameragallery',408,326,360,52,'Galería / '+str(state['photo_count'])+' fotos',False,0)
         detail = str(state['photo_count'])+'/100 fotos / '+str(round(state['storage_bytes']/1048576,1))+' de 250 MiB'
         self.text('camerastorage',32,392,736,28,2,detail,c['muted'],c['bg'],1)
 
@@ -283,10 +282,13 @@ class CameraViews:
                 if 148+i*96<=x<236+i*96: self._camera_interval=value; changed=True
             for i,value in enumerate(COUNTS):
                 if 532+i*80<=x<608+i*80: self._camera_count=value; changed=True
-        elif 326<=y<378 and 32<=x<376:
-            if state['timelapse']:
-                camera.stop_timelapse(); changed=True
-            else:
-                changed = camera.start_timelapse(getattr(self,'_camera_interval',30),getattr(self,'_camera_count',12),unlocked=True)
+        elif 326<=y<378:
+            if 408<=x<768:
+                self.navigate('gallery'); return True
+            if 32<=x<376:
+                if state['timelapse']:
+                    camera.stop_timelapse(); changed=True
+                else:
+                    changed = camera.start_timelapse(getattr(self,'_camera_interval',30),getattr(self,'_camera_count',12),unlocked=True)
         if changed: self.navigate('camera')
         return changed

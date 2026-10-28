@@ -30,6 +30,8 @@ from inactivity import IdleControl
 from focus_sessions import FocusSession, FocusViews
 from music_library import MusicLibrary, LibraryViews
 from camera_tools import CameraController, CameraViews
+from photo_library import PhotoLibrary
+from gallery_views import GalleryViews
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -101,7 +103,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -145,6 +147,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ex
         super().__init__(port,directory)
         try: self.camera=CameraController(self.directory)
         except OSError: self.camera=None
+        self.photos=PhotoLibrary(self.camera) if self.camera else None
         row = self.db.execute("SELECT value FROM state WHERE key='stopwatch'").fetchone()
         if row:
             self.watch = json.loads(row[0])
@@ -223,6 +226,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ex
     def lock_hub(self,away=False):
         self.ambient_since=None
         self.unlocked=False
+        if getattr(self,'photos',None): self.photos.lock()
         if getattr(self,'camera',None): self.camera.lock()
         self.reset_music_session()
         self.spotify_desired=False
@@ -337,6 +341,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ex
         if not self.unlocked:
             return
         if self.touch_experience(x,y): return
+        if self.screen=='gallery': self.touch_gallery(x,y); return
         if self.screen=='power':
             if 260<=y<330:
                 if x<400: self.navigate('home')
@@ -450,7 +455,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ex
         batch=[]; count=0
         while self.artwork:
             command=self.artwork[0]
-            if batch and count+len(command)+3>256: break
+            if batch and count+len(command)+3>(220 if self.screen=='gallery' else 256): break
             batch.append(self.artwork.popleft()); count+=len(command)+3
         self.send_batch(batch)
         if not self.artwork:
@@ -523,6 +528,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ex
         elif self.screen=='focus': self.draw_focus()
         elif self.screen=='library': self.draw_library()
         elif self.screen=='camera': self.draw_camera()
+        elif self.screen=='gallery': self.draw_gallery()
 
         elif self.screen=='github':
             self.art('github',24,88,192)
@@ -643,5 +649,6 @@ if __name__=='__main__':
             hub.stop.set()
             if hub.music_event_process and hub.music_event_process.poll() is None:
                 hub.music_event_process.terminate()
+            if getattr(hub,'photos',None): hub.photos.close()
             hub.alert_sound.silence(); hub.alert_sound.thread.join(3); hub.db.close(); os.close(hub.fd)
             if getattr(hub,'camera',None): hub.camera.close()

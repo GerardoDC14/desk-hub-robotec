@@ -15,7 +15,7 @@ Vista reconstruida desde los comandos de dibujo, con datos de demostración y ti
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
 - **Spotify:** portada progresiva, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, colores de portada, desplazamiento de títulos largos y estados de conexión.
 - **Música guardada:** hasta 24 canciones o episodios elegidos desde el panel, con reproducción, eliminación y deshacer. La selección se guarda localmente y no modifica las listas de Spotify.
-- **Cámara opcional:** fotos manuales y timelapse de laboratorio, con archivos privados en la Pi y cancelación al bloquear.
+- **Cámara opcional:** fotos manuales y timelapse de laboratorio, galería en pantalla y siete opciones de imagen. Guarda copias con efectos sin modificar las fotos originales; los archivos permanecen privados en la Pi.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
 - **Pantalla y bloqueo:** vista ambiental tras un tiempo de inactividad configurable, seguida de bloqueo con PIN después de otro intervalo. La vista ambiental muestra hora, música y la cuenta de tiempo activa.
 - **Estado:** conexión local, salida de audio, Spotify, pantalla y reconexión manual del receptor.
@@ -82,6 +82,8 @@ Vistas reconstruidas con datos de demostración y tipografía aproximada.
 Toca **Estado** en el encabezado para revisar la red local, audio, Spotify y pantalla. **Reconectar Spotify** pide confirmación si hay música o carga activa, reinicia el receptor y descarta órdenes pendientes; después selecciónalo de nuevo desde el teléfono. Abre **Estado → Pantalla y bloqueo** para ajustar los dos tiempos y el brillo ambiental. Con los valores predeterminados, tras **1 minuto sin tocar la pantalla** aparece la vista ambiental y, después de **5 minutos más sin tocarla**, se bloquea el Hub y se detiene Spotify. Tocar la pantalla reinicia la inactividad; los cambios desde Spotify en el teléfono no la reinician. **Ver ahora** abre la vista ambiental de inmediato. El temporizador, cronómetro y alarmas conservan sus estados al bloquear. Consulta [Experiencia y recuperación](docs/EXPERIENCIA.md) y [Uso compartido](docs/USO_COMPARTIDO.md).
 
 Con una cámara CSI conectada y las herramientas `rpicam-apps` instaladas, abre **Estado → Cámara** para tomar fotos o iniciar una secuencia a intervalos. Las capturas son JPEG de 1280 × 720 píxeles y permanecen en la Pi; no hay captura al arrancar ni al entrar en esa vista. Bloquear detiene la secuencia. Sigue [Cámara: fotos y timelapse](docs/CAMARA.md) para conectar el flex con el equipo apagado, comprobar el sensor y copiar las imágenes por SSH.
+
+En **Cámara → Galería**, recorre las fotos con Anterior y Siguiente. Prueba Original, B/N, Sepia, Negativo, Pop, Espejo o Boceto; la vista previa no modifica ningún archivo. **Guardar copia** crea un JPEG separado con el efecto y conserva el tamaño de la foto. Detén las capturas o el timelapse antes de guardar una copia. La galería requiere desbloquear el panel y muestra fotos existentes, sin vídeo en directo.
 
 ![Vista ambiental](docs/images/ambient.png)
 
