@@ -30,14 +30,14 @@ class FriendlyTests(unittest.TestCase):
         value=hub(); value.timer.toggle(); deadline=value.timer.data['deadline']; value.navigate('time')
         self.assertTrue(value.compact); value.touch(100,32); self.assertEqual(value.screen,'home')
         self.assertEqual(value.timer.data['deadline'],deadline)
-        value.last_touch=0; value.touch(200,400)
+        value.last_touch=0; value.touch(300,400)
         self.assertEqual(value.screen,'time'); self.assertTrue(value.compact)
         self.assertEqual(value.timer.data['deadline'],deadline)
 
     def test_running_watch_can_return_home_and_reopen_without_pause(self):
         value=hub(); value.time_mode='watch'; value.watch['started']=time.time()-25; value.navigate('time')
         stamp=value.watch['started']; value.touch(100,32); self.assertEqual(value.screen,'home')
-        value.last_touch=0; value.touch(200,400)
+        value.last_touch=0; value.touch(300,400)
         self.assertEqual(value.time_mode,'watch'); self.assertTrue(value.compact); self.assertEqual(value.watch['started'],stamp)
 
     def test_reconnect_confirmation_only_interrupts_when_confirmed(self):
@@ -57,9 +57,9 @@ class FriendlyTests(unittest.TestCase):
         value.last_touch=0; value.touch(200,290); self.assertIsNone(value.notice); self.assertFalse(value.unlocked)
 
     def test_inactive_music_offers_help_without_claiming_playback(self):
-        value=hub(); value.screen='music'; value.music.update(is_active=False,_ready=False)
+        value=hub(); value.screen='music'; value.music.update(is_active=False,_ready=False,logged_in=False)
         commands=[]; value.send=commands.append; value.render()
-        self.assertTrue(any('Como conectar' in c for c in commands))
+        self.assertTrue(any('¿Cómo conectar?' in c for c in commands))
         value.touch(160,395); self.assertEqual(value.screen,'help'); self.assertTrue(value.music_commands.empty())
 
 
@@ -75,7 +75,7 @@ class ForecastTests(unittest.TestCase):
         value=hub(); value.screen='home'; value.forecast_visible=True
         value.network.update(feels='25 °C',humidity='41 %',wind='2 km/h',forecast=[dict(at=time.time()-60,label='00:00',value='10° · 10%')])
         rows,forecast=value.home_weather_rows(value.network)
-        self.assertFalse(forecast); self.assertEqual(rows[0],('Sensacion','25 °C'))
+        self.assertFalse(forecast); self.assertEqual(rows[0],('Sensación','25 °C'))
         value.network['forecast'][0]['at']=time.time()+3600; value.network['weather_stale']=True
         self.assertFalse(value.home_weather_rows(value.network)[1])
         self.assertEqual(next_hours({},time.time()),[])

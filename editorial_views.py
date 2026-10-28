@@ -37,16 +37,21 @@ class EditorialViews:
         if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
             self.draw_connection_badge()
-            if self.screen=='status': self.text_action('statusback',632,12,136,40,'Volver')
+            if self.screen=='status': self.soft_button('statusback',632,12,136,40,'Volver')
             elif self.screen=='home':
-                self.text_action('lockmanual',504,12,120,40,'Bloquear')
-                self.text_action('power',648,12,120,40,'Apagar')
+                self.soft_button('lockmanual',504,12,120,40,'Bloquear')
+                self.soft_button('power',648,12,120,40,'Apagar')
             elif self.screen in ('music','music_options'):
-                self.text_action('musicoptions',632,12,136,40,'Volver' if self.screen=='music_options' else 'Opciones')
+                self.soft_button('musicoptions',632,12,136,40,'Volver' if self.screen=='music_options' else 'Opciones')
+                if self.screen=='music': self.soft_button('libraryopen',496,12,120,40,'Guardadas')
+            elif self.screen in ('library','focus','camera'):
+                self.soft_button('subpageback',632,12,136,40,'Volver')
+            elif self.screen=='time': self.soft_button('focusopen',632,12,136,40,'Sesiones')
             else: self.text('local',550,14,218,32,2,LOCATION,c['muted'],c['bg'],2)
+            if self.screen=='status': self.soft_button('cameraopen',496,12,120,40,'Cámara')
             self.fill(32,426,736,1,c['button'])
             for i,(view,title) in enumerate(TABS):
-                selected=view==self.screen or (view=='music' and self.screen=='music_options')
+                selected=view==self.screen or (view=='music' and self.screen in ('music_options','library')) or (view=='time' and self.screen=='focus')
                 self.text('nav'+view,i*200+24,431,152,40,0,title,c['mint'] if selected else c['ink'],c['bg'],1)
                 if selected: self.fill(i*200+78,473,44,3,c['mint'])
         if self.screen=='home':
@@ -61,7 +66,7 @@ class EditorialViews:
     def draw_lock(self,now):
         c=self.theme
         self.text('lockbrand',32,20,352,32,2,'ROBOTEC  /  DESK HUB',c['mint'],c['bg'])
-        self.text_action('lockhelp',624,12,144,40,'Ayuda',False,0)
+        self.soft_button('lockhelp',624,12,144,40,'Ayuda',False,0)
         self.text('locktitle',32,91,352,48,0,'Bienvenido.',c['ink'],c['bg'])
         self.digital('lockclock',32,151,330,90,now.strftime('%H:%M'),1,c['ink'],c['bg'])
         self.paragraph('lockhint',32,250,324,'Espera '+str(max(0,math.ceil(self.pin_wait-time.monotonic())))+' segundos' if time.monotonic()<self.pin_wait else self.pin_message,2,0,color=c['ink'])
@@ -78,7 +83,7 @@ class EditorialViews:
 
     def draw_home(self,now,network,music,kind):
         c=self.theme
-        days=['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo']
+        days=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
         months=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
         self.text('date',32,77,364,38,0,f'{days[now.weekday()]}, {now.day} {months[now.month-1]}',c['ink'],c['bg'])
         self.digital('clock',24,112,380,145,now.strftime('%H:%M'),3,c['ink'],c['bg'])
@@ -97,14 +102,14 @@ class EditorialViews:
         self.text('condition',464,173,304,40,font,self.fit(condition,304,font),c['ink'],c['bg'],1)
         rows,forecast=self.home_weather_rows(network)
         available=any(row['at']>time.time() for row in network.get('forecast',[])) and not network.get('weather_stale')
-        weatherhint='Proximas horas / lluvia %' if forecast else LOCATION+(' / ver pronostico' if available else ' / sin pronostico')
+        weatherhint='Próximas horas / lluvia %' if forecast else LOCATION+(' / ver pronóstico' if available else ' / sin pronóstico')
         self.text('weatherlocation',464,216,304,26,2,weatherhint,c['muted'],c['bg'],1)
         for i,(title,value) in enumerate(rows):
             y=260+i*44
             self.text('weatherlabel'+str(i),464,y,136,40,2,title,c['muted'],c['bg'])
             self.text('weathervalue'+str(i),600,y,168,40,0,self.fit(value,168,0),c['ink'],c['bg'],2)
-        self.text('musiceyebrow',32,282,364,26,2,'TU MUSICA' if music['status']=='playing' and music.get('is_active',False) else 'SPOTIFY CONNECT',c['mint'],c['bg'])
-        self.text('homesong',32,316,364,48,0,self.fit(music['title'] if music['status']=='playing' and music.get('is_active',False) else 'Un poco de musica.',364,0),c['ink'],c['bg'])
+        self.text('musiceyebrow',32,282,364,26,2,'TU MÚSICA' if music['status']=='playing' and music.get('is_active',False) else 'SPOTIFY CONNECT',c['mint'],c['bg'])
+        self.text('homesong',32,316,364,48,0,self.fit(music['title'] if music['status']=='playing' and music.get('is_active',False) else 'Un poco de música.',364,0),c['ink'],c['bg'])
         self.draw_home_activity(music)
 
     def draw_away(self,repos):
@@ -130,26 +135,26 @@ class EditorialViews:
         if repos:
             index=(self.repo_index+int((time.monotonic()-self.carousel_started)//18))%len(repos)
             repo=repos[index]
-            language=repo.get('language') or 'Proyecto publico'
+            language=repo.get('language') or 'Proyecto público'
             stats=language+' / '+str(repo.get('stargazers_count',0))+' estrellas'
             number=f'{index+1} de {len(repos)}'
         else:
-            repo=dict(name='GitHub',description='Los proyectos publicos aparecen al conectar con GitHub.')
-            stats='Solo informacion publica'; number='Sin proyectos'
+            repo=dict(name='GitHub',description='Los proyectos públicos aparecen al conectar con GitHub.')
+            stats='Solo información publica'; number='Sin proyectos'
         self.paragraph('awayrepo',430,137,316,repo['name'],2,0,bg=c['card'])
-        self.paragraph('awaydescription',430,225,316,repo.get('description') or 'Codigo y documentacion de este proyecto en GitHub.',2,0,c['ink'],c['card'])
+        self.paragraph('awaydescription',430,225,316,repo.get('description') or 'Código y documentación de este proyecto en GitHub.',2,0,c['ink'],c['card'])
         self.text('awaystats',430,311,318,25,2,self.fit(stats,318),c['mint'],c['card'])
         self.soft_button('projectprev',430,343,70,32,'<')
         self.text('projectnumber',506,345,168,28,2,number,c['muted'],c['card'],1)
         self.soft_button('projectnext',680,343,68,32,'>')
         if self.unlocked: self.soft_button('awayhome',32,416,208,44,'Volver al inicio')
-        else: self.text('awayprivacy',32,413,480,27,2,'Proyectos publicos. El panel sigue bloqueado.',c['muted'],c['bg'])
+        else: self.text('awayprivacy',32,413,480,27,2,'Proyectos públicos. El panel sigue bloqueado.',c['muted'],c['bg'])
         self.soft_button('awayunlock',552,416,216,44,'Bloquear' if self.unlocked else 'Desbloquear',True,0)
 
     def draw_away_setup(self):
         c=self.theme; away=self.timer.data['mode']=='away'
         seconds=self.timer.remaining() if away else 1800
-        self.text('awaytitle',32,78,736,45,0,'¿En cuanto tiempo vuelves?',c['ink'],c['bg'],1)
+        self.text('awaytitle',32,78,736,45,0,'¿En cuánto tiempo vuelves?',c['ink'],c['bg'],1)
         self.text_action('awayreason',32,124,736,32,AWAY_LABELS[getattr(self,'away_label',0)]+' / cambiar',True)
         self.duration_picker('away',seconds,[(15,'15 min'),(30,'30 min'),(60,'1 hora')])
         self.soft_button('awaystart',240,342,320,56,'Estoy fuera',True,0)
@@ -169,23 +174,27 @@ class EditorialViews:
             self.icon_button(key,x,319,34 if selected else 26,icon,selected and control_ready(music),control_ready(music))
         self.text('playing',32,331,256,42,2,self.fit(self.music_label(music),256),c['mint'],c['bg'],1)
         ready=control_ready(music)
-        if self.cache.get('musicassiststate')!=ready:
-            self.fill(40,375,240,41,c['bg']); self.cache.pop('activity:music',None)
-            self.cache.pop('musichelp',None); self.cache['musicassiststate']=ready
+        assist=(ready,music.get('logged_in',False),bool(getattr(self,'music_pending',None)))
+        if self.cache.get('musicassiststate')!=assist:
+            self.fill(32,374,256,44,c['bg']); self.cache.pop('activity:music',None)
+            self.cache.pop('button:musichelp',None); self.cache.pop('musichelp',None); self.cache['musicassiststate']=assist
         if ready: self.activity('music',113,387,music['status']=='playing',c['mint'],c['bg'])
-        else: self.text_action('musichelp',40,375,240,41,'Como conectar',True,0)
+        else:
+            title='Conectando...' if assist[2] else 'Escuchar aquí' if assist[1] else '¿Cómo conectar?'
+            font=0 if self.text_width(title,0)<=228 else 2
+            self.soft_button('musichelp',32,374,256,44,title,True,font)
         self.text('volumelabel',320,373,84,30,2,'Volumen',c['muted'],c['bg'])
         self.progress('volumeprogress',410,384,258,music['volume']/100,c['muted'])
         self.text('volume',680,369,88,38,0,str(music['volume'])+'%',c['ink'],c['bg'],2)
 
     def draw_music_options(self,music):
         c=self.theme; options=music.get('options',{}); repeat=options.get('repeat','off')
-        self.text('optiontitle',48,86,704,48,0,'Tu reproduccion',c['ink'],c['bg'])
-        for i,(label,value) in enumerate([('Aleatorio','Activado' if options.get('shuffle') else 'Desactivado'),('Repetir',{'off':'No','context':'Lista','track':'Cancion'}.get(repeat,'No'))]):
+        self.text('optiontitle',48,86,704,48,0,'Tu reproducción',c['ink'],c['bg'])
+        for i,(label,value) in enumerate([('Aleatorio','Activado' if options.get('shuffle') else 'Desactivado'),('Repetir',{'off':'No','context':'Lista','track':'Canción'}.get(repeat,'No'))]):
             y=159+i*72
             self.text('optionlabel'+str(i),48,y,360,52,0,label,c['ink'],c['bg'])
             self.soft_button('optionvalue'+str(i),488,y,264,52,value,False,0)
-        self.text('displayshortcut',48,287,704,26,2,'Vista ambiental y PIN segun la inactividad',c['mint'],c['bg'])
+        self.text('displayshortcut',48,287,704,26,2,'Vista ambiental y PIN según la inactividad',c['mint'],c['bg'])
         self.soft_button('displaysettings',48,314,704,42,'Pantalla y bloqueo',False,0)
-        self.text('nextlabel',48,365,704,24,2,'A CONTINUACION',c['mint'],c['bg'])
+        self.text('nextlabel',48,365,704,24,2,'A CONTINUACIÓN',c['mint'],c['bg'])
         self.text('nexttrack',48,391,704,30,2,self.fit(music.get('next_title') or 'La cola se controla desde Spotify',704),c['ink'],c['bg'])

@@ -27,6 +27,9 @@ from editorial_views import EditorialViews, PIN_X, PIN_Y, PIN_DX, PIN_DY
 from experience import Experience
 from friendly_ui import FriendlyUI
 from inactivity import IdleControl
+from focus_sessions import FocusSession, FocusViews
+from music_library import MusicLibrary, LibraryViews
+from camera_tools import CameraController, CameraViews
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -98,7 +101,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -140,6 +143,8 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
         self.compact = False
         self.carousel_started = time.monotonic()
         super().__init__(port,directory)
+        try: self.camera=CameraController(self.directory)
+        except OSError: self.camera=None
         row = self.db.execute("SELECT value FROM state WHERE key='stopwatch'").fetchone()
         if row:
             self.watch = json.loads(row[0])
@@ -155,6 +160,10 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
         if self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
             self.away_pending=True; self.away_return=self.timer.data['deadline']
         self.load_display_preferences()
+        row=self.db.execute("SELECT value FROM state WHERE key='focus'").fetchone()
+        if row: self.focus=FocusSession(json.loads(row[0]))
+        row=self.db.execute("SELECT value FROM state WHERE key='library'").fetchone()
+        if row: self.library=MusicLibrary(json.loads(row[0]))
         self.music.update(is_active=False,logged_in=False,_ready=False,_epoch=0)
         self.alert_sound=AlertSound(self.directory,self.stop)
         if self.watch['started'] is not None: self.time_mode='watch'
@@ -171,6 +180,8 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('alarm',?)",(json.dumps(self.alarm.data),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('experience',?)",(json.dumps(dict(ambient_enabled=self.ambient_enabled,away_label=self.away_label,away_pending=self.away_pending,away_return=self.away_return)),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('display',?)",(json.dumps(self.display_settings),))
+        self.db.execute("INSERT OR REPLACE INTO state VALUES ('focus',?)",(json.dumps(self.focus.data),))
+        self.db.execute("INSERT OR REPLACE INTO state VALUES ('library',?)",(json.dumps(self.library.data),))
         self.db.commit()
 
     def worker(self):
@@ -189,7 +200,7 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
                 with self.lock:
                     self.images['github'] = pixels
             except Exception as e:
-                print('Perfil publico:',type(e).__name__,flush=True)
+                print('Perfil público:',type(e).__name__,flush=True)
             self.stop.wait(600)
 
     def spotify_lifecycle(self):
@@ -212,6 +223,7 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
     def lock_hub(self,away=False):
         self.ambient_since=None
         self.unlocked=False
+        if getattr(self,'camera',None): self.camera.lock()
         self.reset_music_session()
         self.spotify_desired=False
         self.marker.unlink(missing_ok=True)
@@ -330,7 +342,7 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
                 if x<400: self.navigate('home')
                 else:
                     self.save(); self.lock_hub(); self.send(f'cls {BG}')
-                    self.label('shutdown',24,100,752,200,'Apagando la Pi... espera 30 segundos antes de retirar alimentacion',0,INK,BG,1)
+                    self.label('shutdown',24,100,752,200,'Apagando la Pi... espera 30 segundos antes de retirar alimentación',0,INK,BG,1)
                     os.sync()
                     result=subprocess.run(['sudo','-n','/usr/bin/systemctl','poweroff'],timeout=5,capture_output=True)
                     if result.returncode: self.pin_message='No se pudo apagar / usa SSH'; self.navigate('lock')
@@ -341,6 +353,12 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
             self.lock_hub(); return
         if self.screen in ('music','music_options') and 632<=x<768 and 12<=y<52:
             self.navigate('music_options' if self.screen=='music' else 'music'); return
+        if self.screen=='music' and 496<=x<616 and 12<=y<52:
+            self.navigate('library'); return
+        if self.screen in ('library','focus','camera') and 632<=x<768 and 12<=y<52:
+            self.navigate({'library':'music','focus':'time','camera':'status'}[self.screen]); return
+        if self.screen=='time' and not self.compact and 632<=x<768 and 12<=y<52:
+            self.navigate('focus'); return
         if self.compact and self.screen in ('time','away'):
             if self.screen=='time' and self.time_mode=='watch' and 412<=y<448:
                 self.lap(); return
@@ -359,7 +377,10 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
             if 0 <= i < 4: self.navigate(TABS[i][0])
             return
         if self.screen=='home':
-            if 32<=x<396 and 280<=y<424: self.navigate('music')
+            if 32<=x<396 and 374<=y<424: self.navigate('music')
+        elif self.screen=='focus': self.touch_focus(x,y)
+        elif self.screen=='library': self.touch_library(x,y)
+        elif self.screen=='camera': self.touch_camera(x,y)
         elif self.screen=='time':
             self.touch_time(x,y)
         elif self.screen=='away':
@@ -481,7 +502,7 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
             self.draw_lock(now); return
         if self.screen=='power':
             self.label('powertitle',24,80,752,120,'¿Apagar la Raspberry Pi?',0,INK,BG,1)
-            self.label('powerhint',24,200,752,40,'Luego espera 30 s y retira la alimentacion de ambos equipos',2,MUTED,BG,1)
+            self.label('powerhint',24,200,752,40,'Luego espera 30 s y retira la alimentación de ambos equipos',2,MUTED,BG,1)
             self.button('powercancel',124,270,266,60,'Cancelar')
             self.button('powerconfirm',410,270,266,60,'Apagar Pi',True)
             return
@@ -499,6 +520,9 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
             self.draw_music(m)
         elif self.screen=='music_options':
             self.draw_music_options(m)
+        elif self.screen=='focus': self.draw_focus()
+        elif self.screen=='library': self.draw_library()
+        elif self.screen=='camera': self.draw_camera()
 
         elif self.screen=='github':
             self.art('github',24,88,192)
@@ -506,7 +530,7 @@ class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardView
             if repos:
                 repo=repos[self.repo_index%len(repos)]
                 self.label('reponame',248,88,528,70,repo['name'][:32],0,INK,BG)
-                self.label('repodesc',248,168,528,76,(repo.get('description') or 'Repositorio publico')[:100],2,MUTED,BG)
+                self.label('repodesc',248,168,528,76,(repo.get('description') or 'Repositorio público')[:100],2,MUTED,BG)
                 self.label('repoinfo',248,262,528,34,f"{repo.get('language') or 'Proyecto'} / {repo['stargazers_count']} estrellas",2,MINT,BG)
                 self.label('updated',248,307,528,28,'Actualizado: '+repo['updated_at'][:10],2,MUTED,BG)
                 self.button('repoprev',248,346,254,48,'Anterior')
@@ -620,3 +644,4 @@ if __name__=='__main__':
             if hub.music_event_process and hub.music_event_process.poll() is None:
                 hub.music_event_process.terminate()
             hub.alert_sound.silence(); hub.alert_sound.thread.join(3); hub.db.close(); os.close(hub.fd)
+            if getattr(hub,'camera',None): hub.camera.close()

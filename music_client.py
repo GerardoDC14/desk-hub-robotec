@@ -7,11 +7,14 @@ import subprocess
 import time
 from music_state import apply_event, control_ready
 from settings import SOLOIST
+from music_library import MusicLibrary
 
 
 class MusicClient:
     def reset_music_session(self):
         with self.lock:
+            self.music_intent=getattr(self,'music_intent',0)+1
+            self.music_pending=None
             self.music_session=getattr(self,'music_session',0)+1
             self.music.update(is_active=False,logged_in=False,_ready=False,_epoch=self.music.get('_epoch',0)+1)
             self.music_stream_online=False
@@ -22,15 +25,60 @@ class MusicClient:
     def queue_music(self,command):
         with self.lock:
             if not self.unlocked or not control_ready(self.music): return False
-            envelope=dict(command=command,created=time.monotonic(),session=getattr(self,'music_session',0),epoch=self.music.get('_epoch',0),uri=self.music.get('uri',''))
+            if command[0] in ('play','pause','prev','next','seek'):
+                self.music_pending=None; self.music_intent=getattr(self,'music_intent',0)+1
+            envelope=dict(command=command,created=time.monotonic(),session=getattr(self,'music_session',0),epoch=self.music.get('_epoch',0),uri=self.music.get('uri',''),intent=getattr(self,'music_intent',0))
         self.music_commands.put(envelope)
         return True
 
     def command_current(self,envelope):
         with self.lock:
-            return (self.unlocked and control_ready(self.music) and time.monotonic()-envelope['created']<2
+            valid=(self.unlocked and time.monotonic()-envelope['created']<2
                     and envelope['session']==getattr(self,'music_session',0) and envelope['epoch']==self.music.get('_epoch',0)
+                    and envelope.get('intent',getattr(self,'music_intent',0))==getattr(self,'music_intent',0))
+            if envelope['command'][0]=='activate': return valid and self.music.get('logged_in',False)
+            return (valid and control_ready(self.music)
                     and (envelope['command'][0] not in ('seek','next','prev','play','pause') or envelope['uri']==self.music.get('uri','')))
+
+    def request_selected_music(self,uri=None):
+        """La activación sólo nace de un toque; espera estado fresco antes de play."""
+        if uri is not None and (not isinstance(uri,str) or not MusicLibrary.URI.fullmatch(uri)): return False
+        with self.lock:
+            if not self.unlocked or not self.music.get('logged_in'): return False
+            pending=getattr(self,'music_pending',None)
+            if pending and pending['uri']==uri and pending['expires']>time.monotonic(): return True
+            self.music_intent=getattr(self,'music_intent',0)+1
+            intent=self.music_intent
+            self.music_pending=None
+            if control_ready(self.music):
+                command=['play']+([uri] if uri else [])
+                envelope=dict(command=command,created=time.monotonic(),session=self.music_session,
+                              epoch=self.music.get('_epoch',0),uri=self.music.get('uri',''),intent=intent)
+            else:
+                active=self.music.get('is_active',False); epoch=self.music.get('_epoch',0)
+                self.music_pending=dict(uri=uri,session=self.music_session,intent=intent,
+                                        epoch=epoch+(0 if active else 1),expires=time.monotonic()+8)
+                envelope=None if active else dict(command=['activate'],created=time.monotonic(),
+                    session=self.music_session,epoch=epoch,uri=self.music.get('uri',''),intent=intent)
+        if envelope: self.music_commands.put(envelope)
+        self.music_refresh.set()
+        return True
+
+    def advance_music_request(self):
+        with self.lock:
+            pending=getattr(self,'music_pending',None)
+            if not pending: return
+            epoch=self.music.get('_epoch',0)
+            if (not self.unlocked or pending['session']!=self.music_session or
+                    pending['intent']!=self.music_intent or time.monotonic()>pending['expires'] or
+                    not self.music.get('logged_in') or epoch>pending['epoch']):
+                self.music_pending=None; return
+            if not control_ready(self.music) or epoch!=pending['epoch']: return
+            self.music_pending=None
+            envelope=dict(command=['play']+([pending['uri']] if pending['uri'] else []),
+                created=time.monotonic(),session=self.music_session,epoch=epoch,
+                uri=self.music.get('uri',''),intent=pending['intent'])
+        self.music_commands.put(envelope)
 
     def music_connection_lost(self,session):
         with self.lock:
@@ -124,6 +172,7 @@ class MusicClient:
                     # La confirmacion de la orden no equivale al cambio de reproduccion.
                     if not self.music_stream_online: next_poll=0
                 next_poll,next_queue=self.music_observations(next_poll,next_queue)
+                self.advance_music_request()
             except (OSError,subprocess.SubprocessError,ValueError):
                 next_poll=time.monotonic()+3; next_queue=time.monotonic()+15
 

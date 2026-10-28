@@ -11,14 +11,16 @@ Vista reconstruida desde los comandos de dibujo, con datos de demostración y ti
 ## Funciones
 
 - **Inicio:** reloj, fecha, temperatura y datos actuales; un toque alterna un pronóstico de tres horas. Las cuentas en curso se pueden abrir desde su tarjeta.
-- **Tiempo:** Temporizador con presets de Enfoque/Descanso, Cronómetro con reloj analógico y vueltas, y Alarma local de una ejecución.
+- **Tiempo:** Temporizador, Cronómetro con reloj analógico y vueltas, Alarma local de una ejecución y sesiones de enfoque con descansos y rondas configurables.
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
 - **Spotify:** portada progresiva, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, colores de portada, desplazamiento de títulos largos y estados de conexión.
+- **Música guardada:** hasta 24 canciones o episodios elegidos desde el panel, con reproducción, eliminación y deshacer. La selección se guarda localmente y no modifica las listas de Spotify.
+- **Cámara opcional:** fotos manuales y timelapse de laboratorio, con archivos privados en la Pi y cancelación al bloquear.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
 - **Pantalla y bloqueo:** vista ambiental tras un tiempo de inactividad configurable, seguida de bloqueo con PIN después de otro intervalo. La vista ambiental muestra hora, música y la cuenta de tiempo activa.
 - **Estado:** conexión local, salida de audio, Spotify, pantalla y reconexión manual del receptor.
 - **Uso compartido:** guía accesible sin desbloquear, bloqueo por inactividad y confirmación antes de interrumpir música mediante reconexión.
-- **Persistencia:** SQLite conserva las cuentas entre reinicios.
+- **Persistencia:** SQLite conserva cuentas, sesiones de enfoque, preferencias y música guardada entre reinicios.
 
 ## Requisitos
 
@@ -55,6 +57,8 @@ Al encender el panel queda bloqueado; si hay una salida pendiente, conserva su a
 
 En **Tiempo**, elige Temporizador, Cronómetro o Alarma. El temporizador ofrece accesos a 5 minutos de descanso, 25 de enfoque y una hora. Los controles − y + ajustan un minuto por toque, entre 1 minuto y 24 horas. Toca la cifra para introducir directamente de 1 a 1440 minutos y pulsa Guardar. Iniciar amplía la cuenta; Pausar o Reiniciar regresa a los ajustes. Inicio vuelve a la portada sin detener el temporizador o cronómetro; toca su tarjeta para recuperarlo. Tiempo y Fuera comparten una cuenta regresiva: elegir una duración nueva sustituye la anterior. El cronómetro es independiente y conserva las cinco últimas vueltas.
 
+Desde Tiempo, abre **Sesiones** para alternar enfoque y descanso durante varias rondas. Ajusta enfoque entre 5 y 90 minutos, descanso entre 1 y 30 minutos y entre 1 y 8 rondas; la propuesta inicial es 25 minutos, 5 minutos y 4 rondas. Pulsa Comenzar. Puedes pausar, continuar o reiniciar la sesión; salir a Inicio conserva la cuenta. Al terminar una fase, el panel espera que pulses Iniciar descanso, Iniciar enfoque o Finalizar. No comienza otra fase sin esa acción. La sesión es independiente del temporizador y de Fuera, y conserva su estado tras reiniciar. La Pi debe permanecer encendida para reproducir los avisos.
+
 La **Alarma** se programa para la próxima ocurrencia de una hora local. Toca las horas o los minutos y usa −/+; la barra ajusta el volumen propio del aviso. El sonido se repite hasta Detener o Posponer 5 min, con un límite de tres minutos. Probar sonido dura cinco segundos. El temporizador usa un sonido diferente y avisa durante un máximo de treinta segundos. Durante el aviso se atenúa el flujo de música y se restaura al detenerlo o terminar; un cambio manual de volumen se respeta. Silenciar detiene el sonido y mantiene el aviso visible; Detener lo cierra. Las cuentas independientes siguen su curso. Los avisos no desbloquean el panel ni activan Spotify. La Pi debe estar encendida y el servicio activo; no es un despertador que arranque la Pi apagada. Consulta [Tiempo y avisos](docs/TIEMPO.md).
 
 En **Fuera**, elige 15, 30 o 60 minutos, ajusta la duración con −/+ o toca la cifra para escribirla. Toca el motivo para elegir Estoy fuera, En reunión o En el laboratorio; pulsa Estoy fuera para iniciar. Permanecen visibles la cuenta, hora de regreso y proyectos públicos. Se detiene Spotify y el acceso vuelve a exigir PIN. Pulsa **Desbloquear** e introduce el PIN correcto al regresar: se termina la salida y se restablece su duración para preparar la siguiente desde Fuera. Abrir el teclado o introducir un PIN incorrecto mantiene la cuenta. **Ver aviso de regreso** vuelve a la vista pública sin desbloquear. Las flechas cambian de proyecto; el cambio automático ocurre cada 18 segundos. El QR abre el perfil público de GitHub en el teléfono. Al vencer la cuenta aparece Regreso pendiente, conserva la hora prevista y sigue bloqueado hasta introducir el PIN correcto.
@@ -63,7 +67,11 @@ En **Fuera**, elige 15, 30 o 60 minutos, ajusta la duración con −/+ o toca la
 
 Vista reconstruida con datos de demostración y tipografía aproximada.
 
-Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositivos disponibles de Spotify. Toca la barra superior para saltar a una posición y la inferior para cambiar el volumen directamente. Los iconos controlan anterior, pausa/reproducción y siguiente. En Opciones están Aleatorio, Repetir y el siguiente tema, cuando Soloist lo proporciona. Desde Opciones puedes abrir Pantalla y bloqueo para ajustar la vista ambiental y cuándo debe pedir nuevamente el PIN. La pantalla distingue espera, sincronización, carga y reproducción local. Los controles esperan a que el Hub sea el dispositivo activo y tenga un estado completo. Controla desde teléfono o pantalla. Bloquear, iniciar Fuera o perder comunicación con la pantalla detiene el receptor.
+Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositivos disponibles de Spotify. **Abrir música** en Inicio lleva al reproductor. Si necesitas instrucciones, pulsa **¿Cómo conectar?**. Cuando ya existe una sesión de Spotify y la reproducción está en otro dispositivo, **Escuchar aquí** solicita trasladarla al Hub; el panel espera la confirmación antes de habilitar los controles.
+
+Toca la barra superior para saltar a una posición y la inferior para cambiar el volumen directamente. Los iconos controlan anterior, pausa/reproducción y siguiente. En Opciones están Aleatorio, Repetir y el siguiente tema, cuando Soloist lo proporciona. Desde Opciones puedes abrir Pantalla y bloqueo para ajustar la vista ambiental y cuándo debe pedir nuevamente el PIN. La pantalla distingue espera, sincronización, carga y reproducción local. Controla desde teléfono o pantalla. Bloquear, iniciar Fuera o perder comunicación con la pantalla detiene el receptor.
+
+En Spotify, abre **Guardadas** y pulsa **Guardar actual** para añadir la canción o episodio mostrado. Toca una tarjeta para escucharlo. **Editar** permite eliminar entradas y **Deshacer** recupera la última eliminación mientras permanezca disponible. Hay espacio para 24 entradas; elimina alguna para añadir otra al llegar al límite. Solo se guardan el identificador de Spotify, título y artista de las entradas que eliges: no se crea un historial automático ni se publica la selección. Es una biblioteca compartida del dispositivo, visible para cualquiera que desbloquee el panel. Reproducir una entrada requiere una sesión de Spotify disponible y conexión a internet; guardarla no descarga su audio ni garantiza que siga disponible en el catálogo.
 
 ![Reproductor de música](docs/images/music.png)
 
@@ -72,6 +80,8 @@ Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositi
 Vistas reconstruidas con datos de demostración y tipografía aproximada.
 
 Toca **Estado** en el encabezado para revisar la red local, audio, Spotify y pantalla. **Reconectar Spotify** pide confirmación si hay música o carga activa, reinicia el receptor y descarta órdenes pendientes; después selecciónalo de nuevo desde el teléfono. Abre **Estado → Pantalla y bloqueo** para ajustar los dos tiempos y el brillo ambiental. Con los valores predeterminados, tras **1 minuto sin tocar la pantalla** aparece la vista ambiental y, después de **5 minutos más sin tocarla**, se bloquea el Hub y se detiene Spotify. Tocar la pantalla reinicia la inactividad; los cambios desde Spotify en el teléfono no la reinician. **Ver ahora** abre la vista ambiental de inmediato. El temporizador, cronómetro y alarmas conservan sus estados al bloquear. Consulta [Experiencia y recuperación](docs/EXPERIENCIA.md) y [Uso compartido](docs/USO_COMPARTIDO.md).
+
+Con una cámara CSI conectada y las herramientas `rpicam-apps` instaladas, abre **Estado → Cámara** para tomar fotos o iniciar una secuencia a intervalos. Las capturas son JPEG de 1280 × 720 píxeles y permanecen en la Pi; no hay captura al arrancar ni al entrar en esa vista. Bloquear detiene la secuencia. Sigue [Cámara: fotos y timelapse](docs/CAMARA.md) para conectar el flex con el equipo apagado, comprobar el sensor y copiar las imágenes por SSH.
 
 ![Vista ambiental](docs/images/ambient.png)
 
@@ -87,7 +97,7 @@ Para desconectar, toca **Apagar** en la esquina superior de Inicio y confirma si
 - [Diagnóstico](docs/DIAGNOSTICO.md)
 - [Nextion: edición y actualización](docs/NEXTION.md)
 
-`inactivity.py` define los tiempos, el bloqueo por inactividad y el brillo; `friendly_ui.py` aporta la guía y la navegación compartida; `weather_data.py` resume el pronóstico horario. `experience.py` gestiona la vista ambiental, el teclado de duración y el estado local; `audio_focus.py` atenúa y restaura el flujo de música durante avisos. `editorial_views.py` define la composición y las zonas visuales de Inicio, Fuera, Spotify y acceso. `soft_ui.py` aporta iconos nativos y actualizaciones por diferencias. `nextion_link.py` filtra el texto y espera la confirmación de ejecución de cada lote UART. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas. `music_client.py` recibe eventos de Soloist. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
+`inactivity.py` define los tiempos, el bloqueo por inactividad y el brillo; `friendly_ui.py` aporta la guía y la navegación compartida; `weather_data.py` resume el pronóstico horario. `experience.py` gestiona la vista ambiental, el teclado de duración y el estado local; `audio_focus.py` atenúa y restaura el flujo de música durante avisos. `editorial_views.py` define la composición y las zonas visuales de Inicio, Fuera, Spotify y acceso. `soft_ui.py` aporta iconos nativos y actualizaciones por diferencias. `nextion_link.py` filtra el texto y espera la confirmación de ejecución de cada lote UART. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas; `focus_sessions.py` gestiona las sesiones de enfoque y `music_library.py` la selección local de música. `music_client.py` recibe eventos de Soloist y coordina las órdenes del reproductor. `camera_tools.py` serializa detección y capturas locales de cámara. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
 
 ## Comprobaciones
 
@@ -97,6 +107,6 @@ python3 robotec.py --self-test
 python3 -m unittest discover -s tests -v
 ```
 
-Los tests cubren temporización, restauración, tramas UART, PIN, bloqueo, alarmas, posposición, avance musical, vueltas, conservación de píxeles al actualizar barras e imágenes y estabilización de la tipografía. El hardware de referencia validó UART a 115200, controles, reproducción y bloqueo de Spotify. Las rutas y servicios configurables requieren prueba de instalación en el equipo destino; los tests no verifican apagado físico ni ventilación.
+Los tests cubren temporización, restauración, tramas UART, PIN, bloqueo, alarmas, sesiones de enfoque, biblioteca local, transferencias de reproducción, vueltas, conservación de píxeles y estabilización de la tipografía. Los de cámara simulan procesos, archivos y cancelaciones; la captura real requiere una cámara conectada y la comprobación descrita en su guía. El hardware de referencia validó UART a 115200, controles, reproducción y bloqueo de Spotify. Las rutas y servicios configurables requieren prueba de instalación en el equipo destino; los tests no verifican apagado físico ni ventilación.
 
 El clima procede de [Open-Meteo](https://open-meteo.com/) y los proyectos de la API pública de GitHub. [Spotify Soloist](https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates) se descarga por separado y conserva sus propios términos; no se incluyen ejecutables ni credenciales.

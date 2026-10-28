@@ -27,7 +27,7 @@ def album_colors(pixels):
 
 
 def probe_system():
-    result=dict(network='Sin conexion',address='',audio='Sin salida',audio_stream=False)
+    result=dict(network='Sin conexión',address='',audio='Sin salida',audio_stream=False)
     def run(*args): return subprocess.run(args,capture_output=True,check=True,timeout=2).stdout
     try:
         routes=json.loads(run('ip','-j','route','show','default'))
@@ -50,6 +50,11 @@ def probe_system():
 
 class Experience:
     def init_experience(self):
+        from focus_sessions import FocusSession
+        from music_library import MusicLibrary
+        self.focus=FocusSession(); self.focus_notice=None
+        self.library=MusicLibrary(); self.library_page=0; self.library_message=''
+        self.music_pending=None; self.music_intent=0
         self.init_friendly()
         self.init_idle()
         self.ambient_enabled=True; self.ambient_return='home'; self.away_label=0
@@ -84,15 +89,16 @@ class Experience:
     def draw_connection_badge(self):
         c=self.theme; info=getattr(self,'system_info',{})
         good=info.get('network') in ('Wi-Fi','Ethernet')
+        self.panel('connectionbadge',224,12,256,40,c['button'],6)
         if self.cache.get('connectiondot')!=good:
             self.send(f"cirs 239,32,4,{c['mint'] if good else c['gold']}")
             self.cache['connectiondot']=good
-        self.text_action('connection',256,12,216,40,'Estado / red local' if good else 'Estado / revisar',False,2)
+        self.text('connection',256,12,216,40,2,'Estado / red local' if good else 'Estado / revisar',c['ink'],c['button'])
 
     def music_label(self,music):
         label=connection_label(music,getattr(self,'music_stream_online',False) or time.monotonic()-getattr(self,'last_music_seen',0)<8)
         info=getattr(self,'system_info',{})
-        if label=='Reproduciendo aqui' and not info.get('audio_stream',True):
+        if label=='Reproduciendo aquí' and not info.get('audio_stream',True):
             label=('Sin audio / abre Estado' if time.monotonic()-music.get('_active_since',time.monotonic())>10 else 'Comprobando salida de audio')
         return label
 
@@ -154,6 +160,7 @@ class Experience:
             return True
         if self.screen=='status':
             if 632<=x<768 and 12<=y<52: self.navigate('home')
+            elif 496<=x<616 and 12<=y<52: self.navigate('camera')
             elif 294<=y<330 and 32<=x<768:
                 self.open_display()
             elif 350<=y<406 and 32<=x<408:
@@ -179,7 +186,8 @@ class Experience:
         self.text('ambientdate',40,66,400,40,0,now.strftime('%d / %m'),c['muted'],c['bg'])
         self.digital('ambientclock',24,120,412,152,now.strftime('%H:%M'),3,c['ink'],c['bg'])
         self.paragraph('ambienttitle',40,292,392,music['title'] if music.get('is_active') else 'Tu espacio. A tu ritmo.',2,0)
-        self.text('ambientartist',40,381,392,30,2,self.fit(('Temporizador / '+self.countdown()) if self.timer.data['deadline'] is not None and self.timer.data['mode']!='away' else ('Cronometro / '+self.hms(self.elapsed())) if self.watch['started'] is not None else music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
+        activity,label=self.home_activity()
+        self.text('ambientartist',40,381,392,30,2,self.fit(label if activity else music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
         self.text('ambienthint',40,436,688,28,2,self.ambient_footer(),c['muted'],c['bg'],1)
         self.icon_button('ambienttoggle',608,399,26,'pause' if music.get('status')=='playing' else 'play',True)
 
@@ -194,6 +202,6 @@ class Experience:
             y=136+i*38
             self.text('statuslabel'+str(i),32,y,152,34,2,label,c['muted'],c['bg'])
             self.text('statusvalue'+str(i),192,y,576,34,0 if self.text_width(value,0)<576 else 2,value,c['ink'],c['bg'])
-        self.text_action('ambientsetting',32,294,736,36,'Pantalla y bloqueo / ajustar tiempos y brillo',True)
+        self.soft_button('ambientsetting',32,290,736,44,'Pantalla y bloqueo',False,0)
         self.soft_button('reconnect',32,350,376,56,'Reconectar Spotify',False,0)
         self.soft_button('ambientnow',432,350,336,56,'Vista ambiental',True,0)

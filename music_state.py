@@ -1,4 +1,4 @@
-"""Estado musical incremental a partir de eventos locales de Spotify Soloist."""
+"""Estado músical incremental a partir de eventos locales de Spotify Soloist."""
 import time
 
 
@@ -65,8 +65,8 @@ def control_ready(state):
 
 def connection_label(state,online=True):
     if not online: return 'Reconectando Spotify...'
-    if not state.get('logged_in',False): return 'Esperando conexion'
+    if not state.get('logged_in',False): return 'Esperando conexión'
     if not state.get('is_active',False): return 'Elige el Hub en Spotify'
     if not state.get('_ready',False): return 'Sincronizando...'
     if state.get('status')=='buffering': return 'Cargando audio...'
-    return 'Reproduciendo aqui' if state.get('status')=='playing' else 'En pausa'
+    return 'Reproduciendo aquí' if state.get('status')=='playing' else 'En pausa'

@@ -1,4 +1,4 @@
-# Temporizador, cronómetro y alarma
+# Temporizador, cronómetro, alarma y sesiones
 
 ## Temporizador
 
@@ -23,6 +23,28 @@ Cuando llega la hora, las tres notas se repiten con una pausa corta entre secuen
 Silenciar corta el sonido y conserva el aviso visible; Detener lo cierra. Ninguna acción cancela un temporizador o cronómetro independiente.
 
 La programación se conserva en SQLite. Si el servicio se recupera hasta cinco minutos después de la hora, reproduce el aviso. Si pasó más tiempo, presenta Alarma vencida sin sonido. No enciende la Raspberry Pi apagada y no sustituye un despertador autónomo: requiere Pi encendida, servicio activo, hora correcta y salida de audio operativa. Si la conexión USB–TTL impide arrancar el servicio, tampoco puede gestionar avisos hasta recuperarse.
+
+## Sesiones de enfoque
+
+Abre **Tiempo → Sesiones** para preparar una secuencia de enfoque y descansos. Los controles −/+ ajustan tres valores:
+
+| Ajuste | Intervalo | Valor inicial |
+|---|---|---|
+| Enfoque | 5–90 minutos | 25 minutos |
+| Descanso | 1–30 minutos | 5 minutos |
+| Rondas | 1–8 | 4 |
+
+Pulsa **Comenzar**. Se muestran fase, ronda, tiempo restante y progreso. Pausar conserva lo restante y Continuar reanuda la misma fase. Reiniciar devuelve la sesión a los ajustes. Puedes salir mediante Inicio sin detenerla; su botón de cuenta permite volver a la sesión.
+
+Al vencer una fase aparece un aviso. **Ver sesión** abre la cuenta y silencia el sonido; **Silenciar** corta el sonido y mantiene el aviso. El sonido dura un máximo de treinta segundos y utiliza el volumen configurado en Alarma. En la sesión, pulsa **Iniciar descanso** o **Iniciar enfoque** para continuar. Después del último enfoque, **Finalizar** muestra las rondas y minutos completados. No se añade un descanso tras la última ronda y ninguna fase empieza automáticamente.
+
+Las sesiones son independientes del temporizador, cronómetro y Fuera. Bloquear no cancela la fase en curso, pero requiere introducir el PIN antes de avanzar a la siguiente. Puedes detener un aviso sin desbloquear el panel. Si otro aviso está visible al terminar una fase, el de enfoque espera a que cierres el anterior.
+
+La configuración y el estado se guardan en SQLite. Una fase en marcha conserva su instante final durante un reinicio; si venció, queda esperando confirmación. Si se recupera más de cinco minutos tarde, se muestra el aviso sin sonido. La Pi necesita permanecer encendida para avisar a tiempo y tener la hora correcta. Una vez completada la sesión, Repetir sesión inicia otra con los mismos valores y Ajustar sesión vuelve a su configuración.
+
+![Preparar una sesión de enfoque](images/sessions.png)
+
+![Sesión en curso](images/sessions-running.png)
 
 ![Alarma](images/alarm.png)
 

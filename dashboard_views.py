@@ -64,7 +64,7 @@ class DashboardViews:
 
     def render_time(self):
         c=self.theme
-        for i,(mode,title) in enumerate([('timer','Temporizador'),('watch','Cronometro'),('alarm','Alarma')]):
+        for i,(mode,title) in enumerate([('timer','Temporizador'),('watch','Cronómetro'),('alarm','Alarma')]):
             self.text_action('mode'+mode,24+i*254,80,244,44,title,self.time_mode==mode,0)
             if self.cache.get('timemode')!=self.time_mode:
                 self.fill(74+i*254,126,144,2,c['mint'] if self.time_mode==mode else c['bg'])
@@ -102,7 +102,7 @@ class DashboardViews:
         c=self.theme
         watch=self.time_mode=='watch'
         self.text_action('runninghome',32,12,176,44,'Inicio',False,0)
-        self.label('runningtitle',24,75,752,48,'Cronometro' if watch else 'Temporizador',0,c['lilac'],c['bg'],1)
+        self.label('runningtitle',24,75,752,48,'Cronómetro' if watch else 'Temporizador',0,c['lilac'],c['bg'],1)
         if watch:
             self.digital('runningtime',24,153,470,135,self.hms(self.elapsed()),1,c['ink'],c['bg'])
             self.analog('watchdial',638,213,88,self.elapsed(),c['muted'],c['mint'],c['bg'])
@@ -141,12 +141,19 @@ class DashboardViews:
             else:
                 self.compact=False
                 self.notify('Tiempo cumplido','timer')
+        focus_event=self.focus.poll()
+        if focus_event:
+            self.focus_notice=focus_event; self.save()
+        if self.focus_notice and not self.notice:
+            event=self.focus_notice; self.focus_notice=None
+            self.notify(event['title'],'missed' if event['missed'] else 'focus')
+            self.notice['previous']='focus' if self.unlocked else self.screen
 
     def render_notice(self):
         c=self.theme
         self.label('noticetitle',24,84,752,100,self.notice['title'],1,c['mint'],c['bg'],1)
         self.label('noticeclock',24,193,752,45,dt.datetime.now().strftime('%H:%M'),0,c['muted'],c['bg'],1)
-        self.button('dismiss',124,270,266,60,'Detener',True)
+        self.button('dismiss',124,270,266,60,'Ver sesión' if self.notice['kind']=='focus' and self.unlocked else 'Detener',True)
         if self.notice['kind']=='alarm': self.button('snooze',410,270,266,60,'Posponer 5 min')
         if self.notice['kind']!='missed': self.soft_button('silence',272,342,256,52,'Silenciado' if self.notice.get('muted') else 'Silenciar',False,0)
         self.label('noticehint',24,414,752,40,'Tu PIN sigue protegiendo el panel' if not self.unlocked else 'Puedes volver a tu actividad',2,c['muted'],c['bg'],1)

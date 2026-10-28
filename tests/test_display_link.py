@@ -148,7 +148,7 @@ class PublicDisplayTests(unittest.TestCase):
         value=hub(); value.screen='home'; commands=[]; value.send=commands.append
         value.network.update(feels='25 °C',humidity='68 %',wind='8 km/h')
         value.render()
-        for text in ['Sensacion','Humedad','Viento','25 °C','68 %','8 km/h']:
+        for text in ['Sensación','Humedad','Viento','25 °C','68 %','8 km/h']:
             self.assertTrue(any('"'+text+'"' in c for c in commands),text)
         value.touch(650,220); self.assertEqual(value.screen,'home')
 

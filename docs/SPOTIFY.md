@@ -76,13 +76,25 @@ La consulta CLI requiere el panel desbloqueado y Soloist activo. Si la compilaci
 
 El botón circular central alterna los símbolos de reproducir y pausa, con el mismo tamaño. A sus lados están anterior y siguiente. La barra bajo el título permite avanzar o retroceder; la barra Volumen cambia el nivel directamente al tocarla. En Opciones, Aleatorio activa/desactiva mezcla y Repetir recorre No, Lista y Canción. Volver regresa al reproductor. El indicador de barras es decorativo y no mide el sonido real. La posición se interpola localmente entre eventos; no requiere consultar Spotify por cada movimiento visual.
 
+**Abrir música** en Inicio lleva al reproductor. Si todavía no hay una sesión de Spotify, **¿Cómo conectar?** abre la guía. Si ya hay una sesión y el Hub está inactivo, **Escuchar aquí** solicita trasladar la reproducción al Hub. Ese traslado requiere tocar el botón; entrar en la pestaña Spotify no cambia el dispositivo que está reproduciendo.
+
 La portada usa vista rápida, refinamiento y caché en memoria. Volver a una canción conocida evita descargarla de nuevo, pero todavía hay que dibujarla en Nextion. El color y resolución son reducidos por el enlace UART. La API pública de [Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api) no documenta letras de canciones; esta integración no las presenta.
+
+## Música guardada en el Hub
+
+En el reproductor, pulsa **Guardadas**. Reproduce una canción o episodio y toca **Guardar actual** para añadirlo a la selección local. Una entrada repetida actualiza sus datos sin ocupar otro espacio. La biblioteca admite hasta 24 entradas y muestra cuatro por página; utiliza Anterior y Siguiente para recorrerlas.
+
+Toca una tarjeta para escuchar esa canción o episodio. El panel necesita una sesión de Spotify disponible: si no la hay, conecta primero desde el teléfono. Si la sesión está reproduciendo en otro dispositivo, esta acción solicita el traslado al Hub y espera la confirmación antes de enviar la canción seleccionada.
+
+Para quitar una entrada, pulsa **Editar** y toca su tarjeta, marcada con el icono de eliminación. **Listo** regresa al modo de reproducción. **Deshacer eliminación** recupera la última entrada quitada mientras el botón esté disponible; esa recuperación temporal no se conserva tras reiniciar. Al alcanzar el límite, elimina alguna entrada antes de guardar otra.
+
+La biblioteca guarda únicamente el identificador de Spotify, título y artista que eliges. No registra automáticamente lo que escuchas, no modifica listas ni favoritos de tu cuenta y no descarga audio para reproducirlo sin internet. La disponibilidad depende de Spotify y de la sesión conectada. La selección permanece en SQLite y es compartida: cualquier persona que desbloquee este Hub puede verla y modificarla. No se publica en GitHub.
 
 ## Cambio entre teléfono y Hub
 
-Selecciona Desk Hub Robotec desde Spotify para enviarle la reproducción. El panel espera a que Spotify confirme que el Hub es el dispositivo activo y entregue un estado completo antes de habilitar sus controles. Puede mostrar Esperando conexión, Elige el Hub en Spotify, Sincronizando o Cargando audio. La posición no avanza por interpolación mientras otro dispositivo esté activo.
+Selecciona Desk Hub Robotec desde Spotify o pulsa **Escuchar aquí** cuando esté disponible. El panel espera a que Spotify confirme que el Hub es el dispositivo activo y entregue un estado completo antes de habilitar sus controles. Puede mostrar Esperando conexión, Elige el Hub en Spotify, Sincronizando o Cargando audio. La posición no avanza por interpolación mientras otro dispositivo esté activo.
 
-Los estados de reproducción y de dispositivo activo son distintos en la [API de Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api). Las respuestas de consultas anteriores se descartan si ya llegaron eventos más recientes; las órdenes de una sesión o canción anterior no se reutilizan. Las órdenes pendientes caducan después de dos segundos. La aplicación no activa el receptor automáticamente para quitarle la reproducción al teléfono.
+Los estados de reproducción y de dispositivo activo son distintos en la [API de Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api). Las respuestas de consultas anteriores se descartan si ya llegaron eventos más recientes; las órdenes de una sesión o canción anterior no se reutilizan. Las órdenes de control pendientes caducan después de dos segundos. Una solicitud de traslado espera un máximo de ocho segundos la confirmación del receptor antes de descartarse; bloquear o reiniciar la sesión también la descarta. Si no termina, vuelve a seleccionar el Hub desde Spotify. La aplicación solo solicita activar el receptor por una acción explícita de reproducción en el panel.
 
 Si la canción aparece pero no hay sonido, revisa Estado: debe haber una salida por jack y un flujo de audio abierto. La existencia del flujo es una comprobación de software y no confirma que los parlantes físicos estén encendidos. Usa Reconectar Spotify y vuelve a seleccionar el Hub en el teléfono si el traspaso no termina.
 
