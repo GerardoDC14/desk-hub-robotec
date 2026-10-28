@@ -18,16 +18,29 @@ Vista reconstruida con tipografía aproximada.
 
 - **Bloquear** cierra el acceso y detiene la música del Hub. La siguiente persona necesita el PIN.
 - Si el Hub permanece desbloqueado, otras personas de la red pueden intentar conectarse desde Spotify. El PIN habilita el receptor completo y no identifica a cada teléfono.
-- La **vista ambiental** muestra hora y música; conserva el estado desbloqueado. Un toque recupera los controles.
+- La **vista ambiental** muestra hora, música y la cuenta de tiempo activa. Mientras no haya vencido el plazo para pedir PIN, un toque fuera del botón de música recupera los controles. Después del bloqueo, necesitas el PIN.
 - **Fuera** publica una hora de regreso y proyectos públicos de GitHub, mantiene el bloqueo y detiene Spotify. El PIN correcto termina la salida.
 
-## Cierre programado
+## Vista ambiental y bloqueo por inactividad
 
-En **Spotify → Opciones**, selecciona **15 min**, **30 min** o **60 min**. La cuenta comienza desde ese momento y se muestra sobre las opciones. **Sin cierre** cancela la programación.
+Abre **Estado → Pantalla y bloqueo** o **Spotify → Opciones → Pantalla y bloqueo**. Ajusta dos intervalos:
 
-Al vencer, se bloquea el panel y se detiene el receptor del Hub. El temporizador, el cronómetro y las alarmas conservan sus estados. El cierre no apaga la Raspberry Pi ni la pantalla. Para volver a escuchar, introduce el PIN y selecciona el Hub desde Spotify.
+| Ajuste | Opciones | Valor inicial |
+|---|---|---|
+| Activar la vista ambiental después de no tocar la pantalla | 30 segundos, 1 minuto, 2 minutos, 5 minutos o Nunca | 1 minuto |
+| Pedir el PIN después de entrar en la vista ambiental | 1, 5, 15 o 30 minutos, o Nunca | 5 minutos |
 
-Un bloqueo manual cancela el cierre pendiente. Si el servicio se reinicia, conserva el instante programado y arranca bloqueado.
+Con los valores iniciales, **1 minuto sin tocar la pantalla** abre la vista ambiental; **5 minutos más sin tocarla** bloquean el Hub. Son **6 minutos de inactividad total**. La reproducción de Spotify y los controles del teléfono no reinician esta cuenta: se mide la interacción con la pantalla del Hub.
+
+Antes del bloqueo, toca fuera del botón de reproducción para recuperar los controles. El botón de música permite pausar o reproducir conservando la vista ambiental; ese toque reinicia el plazo para pedir PIN. Al bloquearse, se detiene el receptor de música y el panel pide el PIN. Las cuentas del temporizador, cronómetro y alarmas se conservan. Los avisos de alarma no suspenden el bloqueo automático ni desbloquean el panel.
+
+**Nunca** en el primer ajuste desactiva la entrada automática a la vista ambiental y, por tanto, su bloqueo automático posterior. Puedes entrar manualmente mediante **Ver ahora**; en ese caso se aplica el intervalo de PIN elegido. **Nunca** en el segundo ajuste mantiene accesible la vista ambiental hasta que se bloquee manualmente o se active Fuera.
+
+El **brillo ambiental** se ajusta entre **20 y 100 %**; inicialmente es **60 %**. El brillo de las vistas normales es del **100 %**. Los ajustes se conservan entre reinicios. **Ver ahora** permite comprobarlos sin esperar.
+
+![Ajustes de pantalla y bloqueo](images/display-settings.png)
+
+Vista reconstruida con tipografía aproximada.
 
 ## Usar otra pantalla mientras corre una cuenta
 

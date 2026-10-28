@@ -34,7 +34,7 @@ El texto externo elimina controles, comillas dobles, barras inversas y el byte `
 
 Las portadas se convierten a 48 × 48 píxeles con una paleta reducida y se dibujan ampliadas a 192 × 192 por bloques. Primero se transmite una vista de 12 × 12 y luego el detalle de 48 × 48. Se fusionan rectángulos iguales contiguos y se omiten píxeles ya correctos. Una caché en memoria conserva ocho portadas. El tiempo depende del contenido y UART; no se transmite vídeo ni una portada de resolución nativa completa. El indicador musical representa actividad, no un análisis del espectro de audio.
 
-La paleta utiliza fondo grafito, texto principal blanco y texto secundario claro; la navegación y las instrucciones de acceso emplean fuentes más grandes. El brillo se ajusta con `dim=100` después de negociar UART. La paleta no modifica el acabado del cristal ni elimina los reflejos de la iluminación.
+La paleta utiliza fondo grafito, texto principal blanco y texto secundario claro; la navegación y las instrucciones de acceso emplean fuentes más grandes. El brillo normal se ajusta al 100 % y el ambiental al porcentaje configurado, entre 20 y 100 %; el valor ambiental inicial es 60 %. Los cambios de brillo se envían al entrar o salir de la vista ambiental, con el mismo escritor UART. La paleta no modifica el acabado del cristal ni elimina los reflejos de la iluminación.
 
 ## Datos y temporización
 
@@ -64,12 +64,20 @@ Los autotests comprueban lógica y parser sin hardware. El apagado físico, la s
 
 Cada orden musical lleva el instante de creación, generación del receptor, época de actividad y canción de origen. Se valida antes de ejecutarla. Bloquear o reconectar invalida la generación y vacía la cola. Cada evento incrementa una revisión; una consulta sólo puede actualizar el estado si conserva esa revisión y generación. Las respuestas a órdenes son confirmaciones de envío, no confirmaciones de reproducción.
 
-El monitor de red y PulseAudio publica datos cada cinco segundos, sin escribir al UART. Sólo el hilo de interfaz dibuja. La vista ambiental se activa en Inicio o Spotify tras 60 segundos sin toques, conserva la reproducción y no cambia el estado de bloqueo. Los ajustes de vista ambiental, motivo y aviso de salida se guardan en SQLite. Regreso pendiente persiste hasta un PIN válido, incluidos reinicios del servicio.
+El monitor de red y PulseAudio publica datos cada cinco segundos, sin escribir al UART. Sólo el hilo de interfaz dibuja. La vista ambiental conserva la reproducción y muestra la cuenta de tiempo activa. Su entrada y el bloqueo posterior se rigen por la inactividad de la pantalla. Los ajustes de pantalla, motivo y aviso de salida se guardan en SQLite. Regreso pendiente persiste hasta un PIN válido, incluidos reinicios del servicio.
 
 Cada refresco reúne las instrucciones de dibujo en una transacción. `NextionLink` divide esa transacción en lotes que caben en el búfer de la pantalla y espera su confirmación; conserva los eventos táctiles recibidos durante la espera. Las portadas se dibujan progresivamente entre refrescos.
 
 ## Uso compartido
 
-`friendly_ui.py` mantiene la guía pública, el cierre programado y los accesos a cuentas en curso. La guía no modifica la autorización del receptor ni el límite de intentos del PIN. El cierre guarda un instante Unix en SQLite y se evalúa desde el ciclo principal, incluso si la pantalla no está respondiendo; no depende del temporizador compartido con Fuera. El cierre detiene el receptor mediante el mismo mecanismo de bloqueo del panel.
+`friendly_ui.py` mantiene la guía pública y los accesos a cuentas en curso. La guía no modifica la autorización del receptor ni el límite de intentos del PIN.
+
+La política de inactividad distingue dos etapas: entrar en la vista ambiental y, después, bloquear con PIN. El valor inicial es de 60 segundos para la primera etapa y 300 segundos adicionales para la segunda. Las duraciones configuradas se guardan en SQLite; la interacción se mide con reloj monotónico. Un toque de pantalla reinicia la inactividad. Los eventos musicales, la reproducción y los controles desde el teléfono no la reinician.
+
+La comprobación del bloqueo se ejecuta en el ciclo principal y no depende de dibujar una vista concreta. Los avisos de alarma no suspenden ese control. Al bloquear se elimina la autorización temporal y se solicita detener Spotify, conservando temporizador, cronómetro y alarmas. Entrar en Fuera mantiene su bloqueo inmediato.
+
+La entrada automática admite 30, 60, 120 o 300 segundos, o Nunca. El retraso de PIN admite 60, 300, 900 o 1800 segundos, o Nunca. Si la entrada automática está desactivada, no se inicia automáticamente la segunda etapa; una entrada manual con Ver ahora sí usa el retraso de PIN configurado. El toque del botón de reproducción dentro de la vista ambiental reinicia ese retraso. El servicio arranca bloqueado después de reiniciar.
 
 El pronóstico se solicita junto con el clima actual. `weather_data.py` convierte instantes Unix a la zona configurada mediante `zoneinfo`, filtra horas pasadas y conserva hasta tres filas. El renderizado nunca consulta la red. Las filas vencidas o de una consulta marcada sin actualizar no sustituyen a las condiciones actuales. En Raspberry Pi OS se utiliza la base de zonas horarias del sistema; para ejecutar las pruebas en Windows, instala también `tzdata` en tu entorno Python.
+
+La pérdida del observador de eventos de Spotify invalida las órdenes del estado anterior y solicita una consulta inmediata. Una respuesta nueva del receptor permite recuperar los controles. Las órdenes pendientes tienen prioridad sobre consultas opcionales, con un límite de un segundo para observaciones locales. Con eventos disponibles, cada toque no provoca una consulta completa adicional.

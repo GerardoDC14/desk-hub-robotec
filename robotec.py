@@ -26,6 +26,7 @@ from nextion_link import NextionLink
 from editorial_views import EditorialViews, PIN_X, PIN_Y, PIN_DX, PIN_DY
 from experience import Experience
 from friendly_ui import FriendlyUI
+from inactivity import IdleControl
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -97,7 +98,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(IdleControl, FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -153,8 +154,7 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
             self.away_return=preferences.get('away_return')
         if self.timer.data['mode']=='away' and self.timer.data['deadline'] is not None:
             self.away_pending=True; self.away_return=self.timer.data['deadline']
-        row=self.db.execute("SELECT value FROM state WHERE key='friendly'").fetchone()
-        if row: self.session_deadline=json.loads(row[0]).get('session_deadline')
+        self.load_display_preferences()
         self.music.update(is_active=False,logged_in=False,_ready=False,_epoch=0)
         self.alert_sound=AlertSound(self.directory,self.stop)
         if self.watch['started'] is not None: self.time_mode='watch'
@@ -163,14 +163,14 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
         threading.Thread(target=self.cover_worker,daemon=True).start()
         threading.Thread(target=self.spotify_lifecycle,daemon=True).start()
         threading.Thread(target=self.system_worker,daemon=True).start()
-        self.lock_hub(away=self.away_pending,keep_schedule=True)
+        self.lock_hub(away=self.away_pending)
 
     def save(self):
         super().save()
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('stopwatch',?)",(json.dumps(self.watch),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('alarm',?)",(json.dumps(self.alarm.data),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('experience',?)",(json.dumps(dict(ambient_enabled=self.ambient_enabled,away_label=self.away_label,away_pending=self.away_pending,away_return=self.away_return)),))
-        self.db.execute("INSERT OR REPLACE INTO state VALUES ('friendly',?)",(json.dumps(dict(session_deadline=self.session_deadline)),))
+        self.db.execute("INSERT OR REPLACE INTO state VALUES ('display',?)",(json.dumps(self.display_settings),))
         self.db.commit()
 
     def worker(self):
@@ -209,9 +209,8 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
             except (OSError,subprocess.SubprocessError): print('Spotify: servicio no disponible',flush=True)
             if desired!=self.spotify_desired: self.spotify_wake.set()
 
-    def lock_hub(self,away=False,keep_schedule=False):
-        if not keep_schedule and getattr(self,'session_deadline',None) is not None:
-            self.session_deadline=None; self.save()
+    def lock_hub(self,away=False):
+        self.ambient_since=None
         self.unlocked=False
         self.reset_music_session()
         self.spotify_desired=False
@@ -232,6 +231,7 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
                 self.save()
             self.marker.touch(mode=0o600)
             self.unlocked=True; self.pin_entry=''; self.pin_failures=0
+            self.screen_activity(time.monotonic()); self.ambient_since=None
             self.spotify_desired=True; self.spotify_wake.set()
             self.navigate('home')
         else:
@@ -269,6 +269,8 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
 
     def navigate(self,view):
         if not self.unlocked and view not in ('lock','away','help'): view='lock'
+        if view=='ambient' and self.screen!='ambient' and self.ambient_since is None:
+            self.ambient_since=time.monotonic()
         self.screen=view
         self.compact=(view=='away' and self.timer.data['mode']=='away' and (self.timer.data['deadline'] is not None or getattr(self,'away_pending',False))) or (view=='time' and (self.watch['started'] is not None if self.time_mode=='watch' else self.time_mode!='alarm' and self.timer.data['deadline'] is not None and self.timer.data['mode']!='away'))
         self.dirty=True
@@ -288,9 +290,12 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
     def touch(self,x,y):
         now=time.monotonic()
         if now-self.last_touch < .15: return
-        self.last_touch=now; self.last_activity=now
+        self.last_touch=now
+        if self.check_inactivity(now=now): return
+        self.screen_activity(now)
         if self.notice:
             self.touch_notice(x,y); return
+        if self.unlocked and self.touch_display(x,y): return
         if self.touch_friendly(x,y): return
         if self.screen=='lock':
             if time.monotonic()<self.pin_wait: return
@@ -464,8 +469,9 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
         with self.lock:
             n=self.network.copy(); m=self.music.copy(); repos=self.repos.copy()
         now=dt.datetime.now()
-        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect'):
+        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings'):
             self.draw_connection_badge()
+        if self.screen=='display_settings': self.draw_display_settings(); return
         if self.screen=='help': self.draw_help(); return
         if self.screen=='confirm_reconnect': self.draw_reconnect_confirm(); return
         if self.screen=='duration': self.draw_duration(); return
@@ -536,7 +542,7 @@ class Robotec(FriendlyUI, Experience, EditorialViews, DashboardViews, MusicClien
                     self.frames=Frames()
                     self.negotiate(); self.send('bkcmd=2'); self.send('page 0')
                     self.link=NextionLink(self.write_packet,self.receive_bytes,self.frames)
-                    self.send('dim=100')
+                    self.send('dim=100'); self.dim_value=None
                     self.send('sendme')
                     self.next_retry=time.monotonic()+3
                 except (RuntimeError,OSError):

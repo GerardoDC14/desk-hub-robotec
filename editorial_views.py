@@ -34,7 +34,7 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
-        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect'):
+        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
             self.draw_connection_badge()
             if self.screen=='status': self.text_action('statusback',632,12,136,40,'Volver')
@@ -185,9 +185,7 @@ class EditorialViews:
             y=159+i*72
             self.text('optionlabel'+str(i),48,y,360,52,0,label,c['ink'],c['bg'])
             self.soft_button('optionvalue'+str(i),488,y,264,52,value,False,0)
-        deadline=getattr(self,'session_deadline',None)
-        self.text('sessionlabel',48,287,704,26,2,'Cerrar sesion en '+self.session_remaining() if deadline else 'Cierre automatico / despues se bloquea',c['mint'],c['bg'])
-        for i,(minutes,label) in enumerate([(15,'15 min'),(30,'30 min'),(60,'60 min'),(0,'Sin cierre')]):
-            self.text_action('sessionpreset'+str(i),48+i*176,316,168,40,label,not deadline and minutes==0)
+        self.text('displayshortcut',48,287,704,26,2,'Vista ambiental y PIN segun la inactividad',c['mint'],c['bg'])
+        self.soft_button('displaysettings',48,314,704,42,'Pantalla y bloqueo',False,0)
         self.text('nextlabel',48,365,704,24,2,'A CONTINUACION',c['mint'],c['bg'])
         self.text('nexttrack',48,391,704,30,2,self.fit(music.get('next_title') or 'La cola se controla desde Spotify',704),c['ink'],c['bg'])

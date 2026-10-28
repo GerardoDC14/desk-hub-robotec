@@ -48,30 +48,6 @@ class FriendlyTests(unittest.TestCase):
         self.assertEqual(value.screen,'status'); self.assertTrue(value.spotify_restart)
         self.assertFalse(value.music['is_active'])
 
-    def test_scheduled_close_locks_and_stops_receiver_preserving_timer_and_watch(self):
-        value=hub(); value.screen='music_options'; value.marker=Mock(); value.spotify_wake=threading.Event()
-        value.touch(90,335); self.assertGreater(value.session_deadline,time.time()+890)
-        value.timer.toggle(); deadline=value.timer.data['deadline']; value.watch['started']=time.time()-7
-        value.session_deadline=time.time()-1; value.poll_tools()
-        self.assertIsNone(value.session_deadline); self.assertFalse(value.unlocked); self.assertFalse(value.spotify_desired)
-        self.assertEqual(value.screen,'lock'); self.assertEqual(value.timer.data['deadline'],deadline)
-        self.assertIsNotNone(value.watch['started']); value.marker.unlink.assert_called_once()
-        value.marker.reset_mock(); value.poll_tools(); value.marker.unlink.assert_not_called()
-
-    def test_scheduled_close_can_be_cancelled_and_survives_save(self):
-        value=hub(); value.screen='music_options'; value.touch(440,335)
-        value.db=sqlite3.connect(':memory:'); value.db.execute('CREATE TABLE state (key TEXT PRIMARY KEY,value TEXT NOT NULL)')
-        Robotec.save(value)
-        stored=json.loads(value.db.execute("SELECT value FROM state WHERE key='friendly'").fetchone()[0])
-        self.assertEqual(stored['session_deadline'],value.session_deadline)
-        value.last_touch=0; value.touch(650,335); self.assertIsNone(value.session_deadline)
-        value.db.close()
-
-    def test_manual_lock_clears_schedule_and_startup_lock_can_preserve_it(self):
-        value=hub(); value.marker=Mock(); value.spotify_wake=threading.Event()
-        value.session_deadline=time.time()+60; value.lock_hub(keep_schedule=True)
-        self.assertIsNotNone(value.session_deadline); value.lock_hub(); self.assertIsNone(value.session_deadline)
-
     def test_silence_keeps_notice_and_countdown_without_unlocking(self):
         value=hub(); value.screen='lock'; value.unlocked=False; value.alert_sound=Mock()
         value.timer.toggle(); deadline=value.timer.data['deadline']; value.notify('Es la hora','alarm')

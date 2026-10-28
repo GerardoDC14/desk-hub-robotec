@@ -15,9 +15,9 @@ Vista reconstruida desde los comandos de dibujo, con datos de demostración y ti
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
 - **Spotify:** portada progresiva, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, colores de portada, desplazamiento de títulos largos y estados de conexión.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
-- **Vista ambiental:** hora, portada y canción tras 60 segundos sin tocar Inicio o Spotify; un toque vuelve a la vista anterior.
+- **Pantalla y bloqueo:** vista ambiental tras un tiempo de inactividad configurable, seguida de bloqueo con PIN después de otro intervalo. La vista ambiental muestra hora, música y la cuenta de tiempo activa.
 - **Estado:** conexión local, salida de audio, Spotify, pantalla y reconexión manual del receptor.
-- **Uso compartido:** guía accesible sin desbloquear, cierre de sesión programado y confirmación antes de interrumpir música mediante reconexión.
+- **Uso compartido:** guía accesible sin desbloquear, bloqueo por inactividad y confirmación antes de interrumpir música mediante reconexión.
 - **Persistencia:** SQLite conserva las cuentas entre reinicios.
 
 ## Requisitos
@@ -49,7 +49,7 @@ Continúa con [Instalación y servicios](docs/INSTALACION.md), [Firmware Nextion
 
 ## Uso
 
-La interfaz usa fondo grafito, texto blanco de alto contraste y navegación grande. El servicio ajusta el brillo de Nextion al 100 % al conectar. Los reflejos del cristal y el ángulo de visión pueden seguir afectando la lectura; orienta la pantalla para evitar luces reflejadas directamente.
+La interfaz usa fondo grafito, texto blanco de alto contraste y navegación grande. El brillo normal es del 100 %; el brillo de la vista ambiental se ajusta entre 20 y 100 %, con 60 % de forma predeterminada. Los reflejos del cristal y el ángulo de visión pueden seguir afectando la lectura; orienta la pantalla para evitar luces reflejadas directamente.
 
 Al encender el panel queda bloqueado; si hay una salida pendiente, conserva su aviso público. Introduce tu PIN y pulsa Entrar; no se distribuye un PIN predeterminado. Ayuda abre una guía local sin habilitar Spotify ni revelar el PIN. Desde las vistas normales, toca ROBOTEC / AYUDA. El panel reintenta la conexión si enciendes Nextion después de la Pi.
 
@@ -63,7 +63,7 @@ En **Fuera**, elige 15, 30 o 60 minutos, ajusta la duración con −/+ o toca la
 
 Vista reconstruida con datos de demostración y tipografía aproximada.
 
-Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositivos disponibles de Spotify. Toca la barra superior para saltar a una posición y la inferior para cambiar el volumen directamente. Los iconos controlan anterior, pausa/reproducción y siguiente. En Opciones están Aleatorio, Repetir y el siguiente tema, cuando Soloist lo proporciona. En Opciones también puedes programar el cierre del Hub en 15, 30 o 60 minutos; Sin cierre lo cancela. Al vencer se bloquea el panel y se detiene el receptor, conservando las cuentas de tiempo. La pantalla distingue espera, sincronización, carga y reproducción local. Los controles esperan a que el Hub sea el dispositivo activo y tenga un estado completo. Controla desde teléfono o pantalla. Bloquear, iniciar Fuera o perder comunicación con la pantalla detiene el receptor.
+Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositivos disponibles de Spotify. Toca la barra superior para saltar a una posición y la inferior para cambiar el volumen directamente. Los iconos controlan anterior, pausa/reproducción y siguiente. En Opciones están Aleatorio, Repetir y el siguiente tema, cuando Soloist lo proporciona. Desde Opciones puedes abrir Pantalla y bloqueo para ajustar la vista ambiental y cuándo debe pedir nuevamente el PIN. La pantalla distingue espera, sincronización, carga y reproducción local. Los controles esperan a que el Hub sea el dispositivo activo y tenga un estado completo. Controla desde teléfono o pantalla. Bloquear, iniciar Fuera o perder comunicación con la pantalla detiene el receptor.
 
 ![Reproductor de música](docs/images/music.png)
 
@@ -71,7 +71,7 @@ Para escuchar música, desbloquea y selecciona **Desk Hub Robotec** en Dispositi
 
 Vistas reconstruidas con datos de demostración y tipografía aproximada.
 
-Toca **Estado** en el encabezado para revisar la red local, audio, Spotify y pantalla. **Reconectar Spotify** pide confirmación si hay música o carga activa, reinicia el receptor y descarta órdenes pendientes; después selecciónalo de nuevo desde el teléfono. Desde Estado puedes abrir la vista ambiental o desactivar su entrada automática. Consulta [Experiencia y recuperación](docs/EXPERIENCIA.md) y [Uso compartido](docs/USO_COMPARTIDO.md).
+Toca **Estado** en el encabezado para revisar la red local, audio, Spotify y pantalla. **Reconectar Spotify** pide confirmación si hay música o carga activa, reinicia el receptor y descarta órdenes pendientes; después selecciónalo de nuevo desde el teléfono. Abre **Estado → Pantalla y bloqueo** para ajustar los dos tiempos y el brillo ambiental. Con los valores predeterminados, tras **1 minuto sin tocar la pantalla** aparece la vista ambiental y, después de **5 minutos más sin tocarla**, se bloquea el Hub y se detiene Spotify. Tocar la pantalla reinicia la inactividad; los cambios desde Spotify en el teléfono no la reinician. **Ver ahora** abre la vista ambiental de inmediato. El temporizador, cronómetro y alarmas conservan sus estados al bloquear. Consulta [Experiencia y recuperación](docs/EXPERIENCIA.md) y [Uso compartido](docs/USO_COMPARTIDO.md).
 
 ![Vista ambiental](docs/images/ambient.png)
 
@@ -87,7 +87,7 @@ Para desconectar, toca **Apagar** en la esquina superior de Inicio y confirma si
 - [Diagnóstico](docs/DIAGNOSTICO.md)
 - [Nextion: edición y actualización](docs/NEXTION.md)
 
-`friendly_ui.py` aporta la guía, el cierre programado y la navegación compartida; `weather_data.py` resume el pronóstico horario. `experience.py` gestiona la vista ambiental, el teclado de duración y el estado local; `audio_focus.py` atenúa y restaura el flujo de música durante avisos. `editorial_views.py` define la composición y las zonas visuales de Inicio, Fuera, Spotify y acceso. `soft_ui.py` aporta iconos nativos y actualizaciones por diferencias. `nextion_link.py` filtra el texto y espera la confirmación de ejecución de cada lote UART. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas. `music_client.py` recibe eventos de Soloist. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
+`inactivity.py` define los tiempos, el bloqueo por inactividad y el brillo; `friendly_ui.py` aporta la guía y la navegación compartida; `weather_data.py` resume el pronóstico horario. `experience.py` gestiona la vista ambiental, el teclado de duración y el estado local; `audio_focus.py` atenúa y restaura el flujo de música durante avisos. `editorial_views.py` define la composición y las zonas visuales de Inicio, Fuera, Spotify y acceso. `soft_ui.py` aporta iconos nativos y actualizaciones por diferencias. `nextion_link.py` filtra el texto y espera la confirmación de ejecución de cada lote UART. `dashboard_views.py` y `dashboard_state.py` gestionan herramientas y alarmas. `music_client.py` recibe eventos de Soloist. `robotec.py` dibuja las vistas y procesa coordenadas de toque; `desk_hub.py` aporta UART, temporización, persistencia y consultas. El HMI editable y el TFT compilado están en `nextion/`. Modifica dibujo y zonas táctiles conjuntamente.
 
 ## Comprobaciones
 

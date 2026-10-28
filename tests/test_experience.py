@@ -77,8 +77,8 @@ class ExperienceTests(unittest.TestCase):
         self.assertIsNone(value.drawing)
         value.send('sendme'); self.assertEqual(value.link.send.call_count,2)
 
-    def test_ambient_only_from_idle_home_or_music(self):
-        for screen,unlocked,compact,expected in [('home',True,False,'ambient'),('music',True,False,'ambient'),('time',True,False,'time'),('away',True,False,'away'),('home',False,False,'home'),('time',True,True,'time')]:
+    def test_idle_ambient_can_cover_unlocked_views_and_running_counts(self):
+        for screen,unlocked,compact,expected in [('home',True,False,'ambient'),('music',True,False,'ambient'),('time',True,False,'ambient'),('away',True,False,'ambient'),('home',False,False,'home'),('time',True,True,'ambient')]:
             value=hub(); value.screen=screen; value.unlocked=unlocked; value.compact=compact
             value.last_activity=time.monotonic()-61; value.prepare_experience()
             self.assertEqual(value.screen,expected)

@@ -32,6 +32,17 @@ class MusicClient:
                     and envelope['session']==getattr(self,'music_session',0) and envelope['epoch']==self.music.get('_epoch',0)
                     and (envelope['command'][0] not in ('seek','next','prev','play','pause') or envelope['uri']==self.music.get('uri','')))
 
+    def music_connection_lost(self,session):
+        with self.lock:
+            if session!=getattr(self,'music_session',0): return False
+            if self.music_stream_online:
+                self.music['_ready']=False
+                self.music['_epoch']=self.music.get('_epoch',0)+1
+                self.music_revision=getattr(self,'music_revision',0)+1
+            self.music_stream_online=False
+            if hasattr(self,'music_refresh'): self.music_refresh.set()
+        return True
+
     def accept_music(self,event,token=None,session=None):
         with self.lock:
             if session is not None and session!=getattr(self,'music_session',0): return False
@@ -92,9 +103,8 @@ class MusicClient:
             except (OSError,ValueError):
                 pass
             finally:
-                with self.lock:
-                    if session==getattr(self,'music_session',0): self.music_stream_online=False
-                self.music_event_process = None
+                self.music_connection_lost(session)
+                if self.music_event_process is process: self.music_event_process=None
                 if process and process.poll() is None:
                     process.terminate()
                     try: process.wait(timeout=2)
@@ -112,25 +122,33 @@ class MusicClient:
                 if envelope and self.command_current(envelope):
                     subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090',*envelope['command']],timeout=3,capture_output=True,check=True)
                     # La confirmacion de la orden no equivale al cambio de reproduccion.
-                    next_poll=0
-                refresh=getattr(self,'music_refresh',None)
-                if refresh and refresh.is_set(): refresh.clear(); next_poll=0
-                if time.monotonic()>=next_poll:
-                    with self.lock:
-                        token=getattr(self,'music_revision',0); session=getattr(self,'music_session',0)
-                    result=subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','now','--json'],timeout=3,capture_output=True,check=True)
-                    self.accept_music(json.loads(result.stdout),token=token,session=session)
-                    with self.lock: ready=control_ready(self.music)
-                    next_poll=time.monotonic()+(15 if self.music_stream_online and ready else 1)
-                if self.screen in ('music','music_options') and time.monotonic()>=next_queue:
-                    with self.lock:
-                        token=getattr(self,'music_revision',0); session=getattr(self,'music_session',0)
-                    result=subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','queue','1','--json'],timeout=3,capture_output=True,check=True)
-                    event=json.loads(result.stdout); event['type']='queue_changed'
-                    self.accept_music(event,token=token,session=session)
-                    next_queue=time.monotonic()+15
+                    if not self.music_stream_online: next_poll=0
+                next_poll,next_queue=self.music_observations(next_poll,next_queue)
             except (OSError,subprocess.SubprocessError,ValueError):
                 next_poll=time.monotonic()+3; next_queue=time.monotonic()+15
+
+    def music_observations(self,next_poll,next_queue):
+        # Los toques pendientes preceden a consultas opcionales. Una lectura
+        # tampoco debe ocupar los dos segundos de validez de la siguiente orden.
+        if self.stop.is_set() or not self.music_commands.empty(): return next_poll,next_queue
+        refresh=getattr(self,'music_refresh',None)
+        if refresh and refresh.is_set(): refresh.clear(); next_poll=0
+        if time.monotonic()>=next_poll:
+            with self.lock:
+                token=getattr(self,'music_revision',0); session=getattr(self,'music_session',0)
+            result=subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','now','--json'],timeout=1,capture_output=True,check=True)
+            self.accept_music(json.loads(result.stdout),token=token,session=session)
+            with self.lock: ready=control_ready(self.music)
+            next_poll=time.monotonic()+(15 if self.music_stream_online and ready else 1)
+        if (not self.stop.is_set() and self.music_commands.empty()
+                and self.screen in ('music','music_options') and time.monotonic()>=next_queue):
+            with self.lock:
+                token=getattr(self,'music_revision',0); session=getattr(self,'music_session',0)
+            result=subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','queue','1','--json'],timeout=1,capture_output=True,check=True)
+            event=json.loads(result.stdout); event['type']='queue_changed'
+            self.accept_music(event,token=token,session=session)
+            next_queue=time.monotonic()+15
+        return next_poll,next_queue
 
     def cover_worker(self):
         while not self.stop.is_set():

@@ -126,7 +126,7 @@ class DashboardViews:
         if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'],kind=kind)
 
     def poll_tools(self):
-        self.poll_session_end()
+        self.check_inactivity()
         changed=self.alarm.poll()
         if changed:
             self.save()

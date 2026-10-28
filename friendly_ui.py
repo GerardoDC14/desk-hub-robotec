@@ -8,13 +8,13 @@ GUIDE=[
  ('Tiempo','Elige Temporizador, Cronometro o Alarma. Toca los minutos para escribirlos. Inicio permite salir de una cuenta en marcha sin detenerla.'),
  ('Fuera','Elige el motivo y la duracion. Estoy fuera bloquea el panel y detiene la musica. Al regresar, introduce el PIN para terminar la salida.'),
  ('Clima','Toca el bloque del clima en Inicio para alternar los datos actuales y las proximas tres horas. El porcentaje indica probabilidad de lluvia.'),
- ('Compartir','El PIN abre el receptor para la red. Usa Opciones de Spotify para programar el cierre. Bloquear termina la sesion; la vista ambiental no la bloquea.'),
+ ('Compartir','En Estado, abre Pantalla y bloqueo: elige cuando entra la vista ambiental y cuanto tarda despues en pedir PIN. Tocar la pantalla reinicia la espera.'),
 ]
 
 
 class FriendlyUI:
     def init_friendly(self):
-        self.session_deadline=None; self.forecast_visible=False
+        self.forecast_visible=False
         self.guide_topic=0; self.guide_return='lock'
 
     def open_help(self,topic=0):
@@ -25,16 +25,6 @@ class FriendlyUI:
         if not self.unlocked: return
         self.reset_music_session(); self.spotify_restart=True; self.spotify_wake.set()
         self.navigate('status')
-
-    def poll_session_end(self):
-        deadline=getattr(self,'session_deadline',None)
-        if deadline is not None and time.time()>=deadline:
-            self.session_deadline=None; self.save()
-            self.lock_hub(away=getattr(self,'away_pending',False))
-
-    def session_remaining(self):
-        seconds=max(0,int((getattr(self,'session_deadline',None) or time.time())-time.time()))
-        return f'{seconds//60:02}:{seconds%60:02}'
 
     def touch_friendly(self,x,y):
         if self.screen=='help':
@@ -72,9 +62,6 @@ class FriendlyUI:
                     self.time_mode='watch'; self.navigate('time'); return True
                 if self.alarm.data['enabled']:
                     self.time_mode='alarm'; self.navigate('time'); return True
-        if self.screen=='music_options' and 316<=y<360 and 48<=x<752:
-            minutes=[15,30,60,0][min(3,(x-48)//176)]
-            self.session_deadline=time.time()+minutes*60 if minutes else None; self.save(); return True
         return False
 
     def draw_help(self):

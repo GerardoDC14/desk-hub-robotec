@@ -51,6 +51,7 @@ def probe_system():
 class Experience:
     def init_experience(self):
         self.init_friendly()
+        self.init_idle()
         self.ambient_enabled=True; self.ambient_return='home'; self.away_label=0
         self.away_pending=False; self.away_return=None; self.last_activity=time.monotonic()
         self.duration_edit=None; self.duration_digits=''; self.duration_error=''
@@ -68,9 +69,8 @@ class Experience:
 
     def prepare_experience(self):
         # Único escritor de pantalla: los hilos de red sólo publican datos.
-        if (getattr(self,'ambient_enabled',True) and self.unlocked and not self.notice and not self.compact
-                and self.screen in ('home','music') and time.monotonic()-getattr(self,'last_activity',time.monotonic())>=60):
-            self.ambient_return=self.screen; self.navigate('ambient')
+        self.check_inactivity(show_ambient=True)
+        self.set_display_brightness()
         base=dict(type(self).theme)
         if self.screen in ('music','ambient'):
             with self.lock: image=self.images.get('music')
@@ -155,7 +155,7 @@ class Experience:
         if self.screen=='status':
             if 632<=x<768 and 12<=y<52: self.navigate('home')
             elif 294<=y<330 and 32<=x<768:
-                self.ambient_enabled=not self.ambient_enabled; self.save()
+                self.open_display()
             elif 350<=y<406 and 32<=x<408:
                 with self.lock: playing=self.music.get('is_active') and self.music.get('status') in ('playing','buffering')
                 if playing: self.navigate('confirm_reconnect')
@@ -179,8 +179,8 @@ class Experience:
         self.text('ambientdate',40,66,400,40,0,now.strftime('%d / %m'),c['muted'],c['bg'])
         self.digital('ambientclock',24,120,412,152,now.strftime('%H:%M'),3,c['ink'],c['bg'])
         self.paragraph('ambienttitle',40,292,392,music['title'] if music.get('is_active') else 'Tu espacio. A tu ritmo.',2,0)
-        self.text('ambientartist',40,381,392,30,2,self.fit(music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
-        self.text('ambienthint',40,436,688,28,2,'Toca para volver'+(' / cierre en '+self.session_remaining() if self.session_deadline else ''),c['muted'],c['bg'],1)
+        self.text('ambientartist',40,381,392,30,2,self.fit(('Temporizador / '+self.countdown()) if self.timer.data['deadline'] is not None and self.timer.data['mode']!='away' else ('Cronometro / '+self.hms(self.elapsed())) if self.watch['started'] is not None else music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
+        self.text('ambienthint',40,436,688,28,2,self.ambient_footer(),c['muted'],c['bg'],1)
         self.icon_button('ambienttoggle',608,399,26,'pause' if music.get('status')=='playing' else 'play',True)
 
     def draw_status(self):
@@ -194,6 +194,6 @@ class Experience:
             y=136+i*38
             self.text('statuslabel'+str(i),32,y,152,34,2,label,c['muted'],c['bg'])
             self.text('statusvalue'+str(i),192,y,576,34,0 if self.text_width(value,0)<576 else 2,value,c['ink'],c['bg'])
-        self.text_action('ambientsetting',32,294,736,36,'Vista ambiental automatica / '+('60 segundos' if getattr(self,'ambient_enabled',True) else 'Desactivada'),True)
+        self.text_action('ambientsetting',32,294,736,36,'Pantalla y bloqueo / ajustar tiempos y brillo',True)
         self.soft_button('reconnect',32,350,376,56,'Reconectar Spotify',False,0)
         self.soft_button('ambientnow',432,350,336,56,'Vista ambiental',True,0)
