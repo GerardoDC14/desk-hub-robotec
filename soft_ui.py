@@ -7,10 +7,12 @@ from font_metrics import text_width
 class SoftUI:
     text_width = staticmethod(text_width)
 
-    def icon_button(self,key,cx,cy,radius,icon,selected=False):
+    def icon_button(self,key,cx,cy,radius,icon,selected=False,enabled=True):
         c=self.theme; bg=c['mint'] if selected else c['card']
         fg=c['bg'] if selected else c['ink']
-        style=(cx,cy,radius,icon,selected)
+        if not enabled:
+            selected=False; bg=c['bg']; fg=33808
+        style=(cx,cy,radius,icon,selected,enabled)
         if self.cache.get('icon:'+key)==style: return
         self.send(f'cirs {cx},{cy},{radius},{bg}')
         if icon in ('plus','minus'):
@@ -35,7 +37,7 @@ class SoftUI:
         self.icon_button(key+'minus',238,207,29,'minus')
         self.icon_button(key+'plus',562,207,29,'plus')
         self.digital(key+'value',294,159,212,86,str(max(0,int(seconds)//60)),1,c['ink'],c['bg'])
-        self.text(key+'unit',294,247,212,28,2,('minutos' if int(seconds)%60==0 else f'minutos {int(seconds)%60:02} s'),c['muted'],c['bg'],1)
+        self.text(key+'unit',294,247,212,28,2,('minutos / editar' if int(seconds)%60==0 else f'minutos {int(seconds)%60:02} s'),c['muted'],c['bg'],1)
         for i,(minutes,title) in enumerate(presets):
             self.text_action(key+'preset'+str(i),194+i*140,283,132,40,title,seconds==minutes*60)
 

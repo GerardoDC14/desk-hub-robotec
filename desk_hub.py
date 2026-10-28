@@ -179,16 +179,19 @@ class Hub:
         self.cache[key] = style
 
     def worker(self):
+        from weather_data import next_hours
         while not self.stop.is_set():
             try:
-                r = fetch('https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(dict(latitude=LATITUDE, longitude=LONGITUDE, current='temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m', timezone=TIMEZONE)))['current']
+                weather = fetch('https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(dict(latitude=LATITUDE, longitude=LONGITUDE, current='temperature_2m,weather_code,apparent_temperature,relative_humidity_2m,wind_speed_10m',hourly='temperature_2m,precipitation_probability',timeformat='unixtime',forecast_days=2, timezone=TIMEZONE)))
+                r=weather['current']
                 with self.lock:
                     self.network.update(weather=f"{r['temperature_2m']:.0f} °C", condition=weather_label(r['weather_code']) + ' / ' + LOCATION,weather_code=r['weather_code'],
-                                        feels=f"{r['apparent_temperature']:.0f} °C",humidity=f"{r['relative_humidity_2m']:.0f} %",wind=f"{r['wind_speed_10m']:.0f} km/h",weather_updated='actualizado '+dt.datetime.now().strftime('%H:%M'))
+                                        feels=f"{r['apparent_temperature']:.0f} °C",humidity=f"{r['relative_humidity_2m']:.0f} %",wind=f"{r['wind_speed_10m']:.0f} km/h",weather_updated='actualizado '+dt.datetime.now().strftime('%H:%M'),weather_epoch=time.time(),forecast=next_hours(weather.get('hourly',{}),time.time()),weather_stale=False)
             except Exception as e:
                 print('Clima no disponible:', type(e).__name__, flush=True)
                 with self.lock:
                     self.network['condition'] = 'Clima sin actualizar / ' + LOCATION
+                    self.network['weather_stale']=True
             try:
                 r = fetch(f'https://api.github.com/users/{GITHUB_USER}')
                 with self.lock:

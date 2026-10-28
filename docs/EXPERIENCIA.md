@@ -48,3 +48,19 @@ La alarma repite el aviso durante un máximo de tres minutos y el temporizador d
 ## Instalación de estas funciones
 
 Las vistas y su lógica se ejecutan en Python en la Raspberry Pi. Se usa el HMI/TFT de referencia del repositorio; estas funciones no requieren volver a cargar la microSD de la pantalla. Mantén todos los módulos Python de la misma versión y reinicia el servicio después de actualizar el código.
+
+## Uso compartido y ayuda
+
+Ayuda está disponible en la pantalla del PIN y mediante ROBOTEC / AYUDA en las vistas normales. Explica Música, Tiempo, Fuera, Clima y Compartir. Funciona sin internet y mantiene el estado de bloqueo y la espera por intentos de PIN incorrectos.
+
+Durante un temporizador o cronómetro activo, Inicio vuelve a la portada sin detener la cuenta. Su tarjeta permite recuperarla. En los avisos, Silenciar corta el sonido sin cerrar el aviso; Detener lo cierra. Las cuentas independientes siguen funcionando.
+
+En Spotify → Opciones, selecciona 15, 30 o 60 minutos para cerrar la sesión automáticamente. El plazo se cuenta desde el toque. Sin cierre cancela la programación. Al vencer se bloquea el panel y se detiene Spotify; el temporizador, cronómetro y alarmas se conservan. La vista ambiental muestra el tiempo restante del cierre. Bloquear manualmente lo cancela; un reinicio conserva el plazo original y arranca bloqueado.
+
+Si Spotify está reproduciendo o cargando audio en el Hub, Reconectar Spotify presenta una confirmación. Cancelar conserva la sesión.
+
+## Pronóstico sin salir de Inicio
+
+Toca el bloque de clima para alternar los datos actuales y las próximas tres horas. La temperatura grande sigue siendo la actual. Cada fila del pronóstico muestra hora local, temperatura en °C y probabilidad de precipitación en %. Un segundo toque recupera sensación térmica, humedad y viento. Si no hay un pronóstico vigente, se mantienen los datos actuales y se indica su indisponibilidad.
+
+Los datos proceden del [pronóstico horario de Open-Meteo](https://open-meteo.com/en/docs) y se consultan aproximadamente cada diez minutos. El pronóstico expresa una estimación, no una medición futura.

@@ -50,6 +50,7 @@ def probe_system():
 
 class Experience:
     def init_experience(self):
+        self.init_friendly()
         self.ambient_enabled=True; self.ambient_return='home'; self.away_label=0
         self.away_pending=False; self.away_return=None; self.last_activity=time.monotonic()
         self.duration_edit=None; self.duration_digits=''; self.duration_error=''
@@ -156,7 +157,9 @@ class Experience:
             elif 294<=y<330 and 32<=x<768:
                 self.ambient_enabled=not self.ambient_enabled; self.save()
             elif 350<=y<406 and 32<=x<408:
-                self.reset_music_session(); self.spotify_restart=True; self.spotify_wake.set()
+                with self.lock: playing=self.music.get('is_active') and self.music.get('status') in ('playing','buffering')
+                if playing: self.navigate('confirm_reconnect')
+                else: self.reconnect_music()
             elif 350<=y<406 and 432<=x<768:
                 self.ambient_return='home'; self.navigate('ambient')
             elif y>=424:
@@ -177,7 +180,7 @@ class Experience:
         self.digital('ambientclock',24,120,412,152,now.strftime('%H:%M'),3,c['ink'],c['bg'])
         self.paragraph('ambienttitle',40,292,392,music['title'] if music.get('is_active') else 'Tu espacio. A tu ritmo.',2,0)
         self.text('ambientartist',40,381,392,30,2,self.fit(music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
-        self.text('ambienthint',40,436,688,28,2,'Toca para volver',c['muted'],c['bg'],1)
+        self.text('ambienthint',40,436,688,28,2,'Toca para volver'+(' / cierre en '+self.session_remaining() if self.session_deadline else ''),c['muted'],c['bg'],1)
         self.icon_button('ambienttoggle',608,399,26,'pause' if music.get('status')=='playing' else 'play',True)
 
     def draw_status(self):

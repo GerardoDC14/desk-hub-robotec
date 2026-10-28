@@ -67,3 +67,9 @@ Cada orden musical lleva el instante de creación, generación del receptor, ép
 El monitor de red y PulseAudio publica datos cada cinco segundos, sin escribir al UART. Sólo el hilo de interfaz dibuja. La vista ambiental se activa en Inicio o Spotify tras 60 segundos sin toques, conserva la reproducción y no cambia el estado de bloqueo. Los ajustes de vista ambiental, motivo y aviso de salida se guardan en SQLite. Regreso pendiente persiste hasta un PIN válido, incluidos reinicios del servicio.
 
 Cada refresco reúne las instrucciones de dibujo en una transacción. `NextionLink` divide esa transacción en lotes que caben en el búfer de la pantalla y espera su confirmación; conserva los eventos táctiles recibidos durante la espera. Las portadas se dibujan progresivamente entre refrescos.
+
+## Uso compartido
+
+`friendly_ui.py` mantiene la guía pública, el cierre programado y los accesos a cuentas en curso. La guía no modifica la autorización del receptor ni el límite de intentos del PIN. El cierre guarda un instante Unix en SQLite y se evalúa desde el ciclo principal, incluso si la pantalla no está respondiendo; no depende del temporizador compartido con Fuera. El cierre detiene el receptor mediante el mismo mecanismo de bloqueo del panel.
+
+El pronóstico se solicita junto con el clima actual. `weather_data.py` convierte instantes Unix a la zona configurada mediante `zoneinfo`, filtra horas pasadas y conserva hasta tres filas. El renderizado nunca consulta la red. Las filas vencidas o de una consulta marcada sin actualizar no sustituyen a las condiciones actuales. En Raspberry Pi OS se utiliza la base de zonas horarias del sistema; para ejecutar las pruebas en Windows, instala también `tzdata` en tu entorno Python.

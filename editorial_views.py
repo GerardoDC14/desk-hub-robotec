@@ -34,8 +34,8 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
-        if not self.compact and self.screen not in ('lock','power','ambient','duration'):
-            self.text('brand',32,14,178,32,2,'ROBOTEC / DESK HUB',c['ink'],c['bg'])
+        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect'):
+            self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
             self.draw_connection_badge()
             if self.screen=='status': self.text_action('statusback',632,12,136,40,'Volver')
             elif self.screen=='home':
@@ -61,6 +61,7 @@ class EditorialViews:
     def draw_lock(self,now):
         c=self.theme
         self.text('lockbrand',32,20,352,32,2,'ROBOTEC  /  DESK HUB',c['mint'],c['bg'])
+        self.text_action('lockhelp',624,12,144,40,'Ayuda',False,0)
         self.text('locktitle',32,91,352,48,0,'Bienvenido.',c['ink'],c['bg'])
         self.digital('lockclock',32,151,330,90,now.strftime('%H:%M'),1,c['ink'],c['bg'])
         self.paragraph('lockhint',32,250,324,'Espera '+str(max(0,math.ceil(self.pin_wait-time.monotonic())))+' segundos' if time.monotonic()<self.pin_wait else self.pin_message,2,0,color=c['ink'])
@@ -94,17 +95,17 @@ class EditorialViews:
         condition=network['condition'].split(' / ')[0]
         font=0 if self.text_width(condition,0)<=304 else 2
         self.text('condition',464,173,304,40,font,self.fit(condition,304,font),c['ink'],c['bg'],1)
-        self.text('weatherlocation',464,216,304,26,2,LOCATION,c['muted'],c['bg'],1)
-        for i,(title,value) in enumerate([('Sensacion',network.get('feels','--')),('Humedad',network.get('humidity','--')),('Viento',network.get('wind','--'))]):
+        rows,forecast=self.home_weather_rows(network)
+        available=any(row['at']>time.time() for row in network.get('forecast',[])) and not network.get('weather_stale')
+        weatherhint='Proximas horas / lluvia %' if forecast else LOCATION+(' / ver pronostico' if available else ' / sin pronostico')
+        self.text('weatherlocation',464,216,304,26,2,weatherhint,c['muted'],c['bg'],1)
+        for i,(title,value) in enumerate(rows):
             y=260+i*44
             self.text('weatherlabel'+str(i),464,y,136,40,2,title,c['muted'],c['bg'])
             self.text('weathervalue'+str(i),600,y,168,40,0,self.fit(value,168,0),c['ink'],c['bg'],2)
         self.text('musiceyebrow',32,282,364,26,2,'TU MUSICA' if music['status']=='playing' and music.get('is_active',False) else 'SPOTIFY CONNECT',c['mint'],c['bg'])
-        self.paragraph('homesong',32,316,364,music['title'] if music['status']=='playing' and music.get('is_active',False) else 'Un poco de musica.',2,0)
-        detail=music['artist'] if music['status']=='playing' and music.get('is_active',False) else 'Toca para abrir el reproductor'
-        if self.timer.data['deadline'] is not None: detail='Temporizador / '+self.countdown()
-        elif self.alarm.data['enabled']: detail='Alarma / '+dt.datetime.fromtimestamp(self.alarm.data['deadline']).strftime('%H:%M')
-        self.text('homedetail',32,398,364,24,2,self.fit(detail,364),c['muted'],c['bg'])
+        self.text('homesong',32,316,364,48,0,self.fit(music['title'] if music['status']=='playing' and music.get('is_active',False) else 'Un poco de musica.',364,0),c['ink'],c['bg'])
+        self.draw_home_activity(music)
 
     def draw_away(self,repos):
         c=self.theme; deadline=self.timer.data['deadline'] or getattr(self,'away_return',None) or time.time()
@@ -165,9 +166,14 @@ class EditorialViews:
         self.text('tracklength',628,238,140,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
         self.progress('trackprogress',320,267,448,ms/max(1,duration),c['mint'])
         for key,x,icon,selected in [('prev',434,'prev',False),('toggle',544,'pause' if music['status']=='playing' else 'play',True),('next',654,'next',False)]:
-            self.icon_button(key,x,319,34 if selected else 26,icon,selected and control_ready(music))
+            self.icon_button(key,x,319,34 if selected else 26,icon,selected and control_ready(music),control_ready(music))
         self.text('playing',32,331,256,42,2,self.fit(self.music_label(music),256),c['mint'],c['bg'],1)
-        self.activity('music',113,387,music['status']=='playing' and control_ready(music),c['mint'],c['bg'])
+        ready=control_ready(music)
+        if self.cache.get('musicassiststate')!=ready:
+            self.fill(40,375,240,41,c['bg']); self.cache.pop('activity:music',None)
+            self.cache.pop('musichelp',None); self.cache['musicassiststate']=ready
+        if ready: self.activity('music',113,387,music['status']=='playing',c['mint'],c['bg'])
+        else: self.text_action('musichelp',40,375,240,41,'Como conectar',True,0)
         self.text('volumelabel',320,373,84,30,2,'Volumen',c['muted'],c['bg'])
         self.progress('volumeprogress',410,384,258,music['volume']/100,c['muted'])
         self.text('volume',680,369,88,38,0,str(music['volume'])+'%',c['ink'],c['bg'],2)
@@ -179,5 +185,9 @@ class EditorialViews:
             y=159+i*72
             self.text('optionlabel'+str(i),48,y,360,52,0,label,c['ink'],c['bg'])
             self.soft_button('optionvalue'+str(i),488,y,264,52,value,False,0)
-        self.text('nextlabel',48,329,704,26,2,'A CONTINUACION',c['mint'],c['bg'])
-        self.text('nexttrack',48,362,704,42,0,self.fit(music.get('next_title') or 'La cola se controla desde Spotify',704,0),c['ink'],c['bg'])
+        deadline=getattr(self,'session_deadline',None)
+        self.text('sessionlabel',48,287,704,26,2,'Cerrar sesion en '+self.session_remaining() if deadline else 'Cierre automatico / despues se bloquea',c['mint'],c['bg'])
+        for i,(minutes,label) in enumerate([(15,'15 min'),(30,'30 min'),(60,'60 min'),(0,'Sin cierre')]):
+            self.text_action('sessionpreset'+str(i),48+i*176,316,168,40,label,not deadline and minutes==0)
+        self.text('nextlabel',48,365,704,24,2,'A CONTINUACION',c['mint'],c['bg'])
+        self.text('nexttrack',48,391,704,30,2,self.fit(music.get('next_title') or 'La cola se controla desde Spotify',704),c['ink'],c['bg'])

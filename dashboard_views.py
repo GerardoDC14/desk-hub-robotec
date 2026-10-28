@@ -101,6 +101,7 @@ class DashboardViews:
     def render_running(self):
         c=self.theme
         watch=self.time_mode=='watch'
+        self.text_action('runninghome',32,12,176,44,'Inicio',False,0)
         self.label('runningtitle',24,75,752,48,'Cronometro' if watch else 'Temporizador',0,c['lilac'],c['bg'],1)
         if watch:
             self.digital('runningtime',24,153,470,135,self.hms(self.elapsed()),1,c['ink'],c['bg'])
@@ -121,9 +122,11 @@ class DashboardViews:
             self.notice['title']=title
             self.notice['kind']=kind
         self.dirty=True; self.cache.clear(); self.artwork.clear(); self.art_key=None
+        self.notice['muted']=False
         if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'],kind=kind)
 
     def poll_tools(self):
+        self.poll_session_end()
         changed=self.alarm.poll()
         if changed:
             self.save()
@@ -145,9 +148,12 @@ class DashboardViews:
         self.label('noticeclock',24,193,752,45,dt.datetime.now().strftime('%H:%M'),0,c['muted'],c['bg'],1)
         self.button('dismiss',124,270,266,60,'Detener',True)
         if self.notice['kind']=='alarm': self.button('snooze',410,270,266,60,'Posponer 5 min')
-        self.label('noticehint',24,369,752,40,'Tu PIN sigue protegiendo el panel' if not self.unlocked else 'Puedes volver a tu actividad',2,c['muted'],c['bg'],1)
+        if self.notice['kind']!='missed': self.soft_button('silence',272,342,256,52,'Silenciado' if self.notice.get('muted') else 'Silenciar',False,0)
+        self.label('noticehint',24,414,752,40,'Tu PIN sigue protegiendo el panel' if not self.unlocked else 'Puedes volver a tu actividad',2,c['muted'],c['bg'],1)
 
     def touch_notice(self,x,y):
+        if self.notice['kind']!='missed' and 342<=y<394 and 272<=x<528:
+            self.alert_sound.silence(); self.notice['muted']=True; return
         if not 270<=y<330: return
         if 410<=x<676 and self.notice['kind']=='alarm':
             self.alarm.snooze(); self.save()
