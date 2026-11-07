@@ -79,12 +79,10 @@ class EditorialViews:
                     self.panel('navpill'+view,left+6,430,right-left-12,46,c['card'],18)
                 self.text('nav'+view,left+14,433,right-left-28,40,0,title,c['mint'] if selected else c['muted'],c['card'] if selected else c['bg'],1)
         if self.screen=='home':
-            self.fill(428,82,1,308,c['button'])
+            self.panel('homeweathercard',448,72,320,344,c['card'],24)
             self.fill(32,268,364,1,c['button'])
         if self.compact and self.screen=='away':
-            self.fill(32,59,736,1,c['button'])
-            self.panel('project',410,80,358,308,c['card'],6)
-            self.fill(32,400,736,1,c['button'])
+            self.panel('project',410,80,358,308,c['card'],24)
         self.dirty=False
 
     def draw_lock(self,now):
@@ -115,23 +113,23 @@ class EditorialViews:
         if '°' not in weather: weather='--°'
         weather=weather.replace(' °C','°')
         if self.cache.get('homeweatherlayout')!=(weather,kind):
-            self.fill(464,78,304,88,c['bg'])
+            self.fill(464,88,288,80,c['card'])
             self.cache.pop('weathericon',None); self.cache.pop('temperature',None)
             self.cache['homeweatherlayout']=(weather,kind)
-        width=self.text_width(weather,1)+8; group=64+16+width; left=464+(304-group)//2
-        self.weather_icon('weathericon',left,89,kind,64,c['bg'],c['gold'],c['blue'],c['blue'])
-        self.text('temperature',left+80,78,width,86,1,weather,c['ink'],c['bg'],1)
+        width=self.text_width(weather,1)+8; group=64+16+width; left=464+(288-group)//2
+        self.weather_icon('weathericon',left,96,kind,64,c['card'],c['gold'],c['blue'],c['blue'])
+        self.text('temperature',left+80,88,width,80,1,weather,c['ink'],c['card'],1)
         condition=network['condition'].split(' / ')[0]
-        font=0 if self.text_width(condition,0)<=304 else 2
-        self.text('condition',464,173,304,40,font,self.fit(condition,304,font),c['ink'],c['bg'],1)
+        font=0 if self.text_width(condition,0)<=288 else 2
+        self.text('condition',464,174,288,40,font,self.fit(condition,288,font),c['ink'],c['card'],1)
         rows,forecast=self.home_weather_rows(network)
         available=any(row['at']>time.time() for row in network.get('forecast',[])) and not network.get('weather_stale')
         weatherhint='Próximas horas / lluvia %' if forecast else LOCATION+(' / ver pronóstico' if available else ' / sin pronóstico')
-        self.text('weatherlocation',464,216,304,26,2,weatherhint,c['muted'],c['bg'],1)
+        self.text('weatherlocation',464,216,288,26,2,self.fit(weatherhint,288),c['muted'],c['card'],1)
         for i,(title,value) in enumerate(rows):
             y=260+i*44
-            self.text('weatherlabel'+str(i),464,y,136,40,2,title,c['muted'],c['bg'])
-            self.text('weathervalue'+str(i),600,y,168,40,0,self.fit(value,168,0),c['ink'],c['bg'],2)
+            self.text('weatherlabel'+str(i),472,y,112,40,2,self.fit(title,112),c['muted'],c['card'])
+            self.text('weathervalue'+str(i),584,y,160,40,0,self.fit(value,160,0),c['ink'],c['card'],2)
         self.text('musiceyebrow',32,282,364,26,2,'TU MÚSICA' if music['status']=='playing' and music.get('is_active',False) else 'SPOTIFY CONNECT',c['mint'],c['bg'])
         self.text('homesong',32,316,364,48,0,self.fit(music['title'] if music['status']=='playing' and music.get('is_active',False) else 'Un poco de música.',364,0),c['ink'],c['bg'])
         self.draw_home_activity(music)
@@ -140,12 +138,12 @@ class EditorialViews:
         c=self.theme; deadline=self.away_timer.data['deadline'] or getattr(self,'away_return',None) or time.time()
         pending=self.away_timer.data['deadline'] is None
         self.text('awayheading',32,13,512,40,0,AWAY_LABELS[getattr(self,'away_label',0)]+'.',c['ink'],c['bg'])
-        self.text('awaystatus',560,18,208,30,2,'SPOTIFY ACTIVO' if self.unlocked else 'SPOTIFY DESACTIVADO',c['muted'],c['bg'],2)
-        self.text('awayreturnlabel',32,83,350,40,0,'REGRESO PENDIENTE' if pending else 'VUELVO A LAS',c['coral'],c['bg'])
+        self.text('awaystatus',560,18,208,30,2,'Spotify activo' if self.unlocked else 'Spotify desactivado',c['muted'],c['bg'],2)
+        self.text('awayreturnlabel',32,90,350,32,2,'REGRESO PENDIENTE' if pending else 'VUELVO A LAS',c['mint'],c['bg'])
         self.digital('awayreturn',24,132,366,142,dt.datetime.fromtimestamp(deadline).strftime('%H:%M'),3,c['ink'],c['bg'])
         remaining='Hora prevista' if pending else 'Faltan '+self.countdown(away=True)
-        self.text('awaycount',32,287,224,40,0 if self.text_width(remaining,0)<=224 else 2,remaining,c['coral'],c['bg'])
-        self.progress('awayprogress',32,345,216,1-self.away_timer.remaining()/max(1,self.away_timer.data['duration']),c['coral'])
+        self.text('awaycount',32,287,224,40,0 if self.text_width(remaining,0)<=224 else 2,remaining,c['mint'],c['bg'])
+        self.progress('awayprogress',32,345,216,1-self.away_timer.remaining()/max(1,self.away_timer.data['duration']),c['mint'])
         self.text('awayprofile',32,362,224,28,2,'github.com/'+GITHUB_USER,c['muted'],c['bg'])
         if 'profileqr' not in self.images:
             try:
@@ -166,7 +164,7 @@ class EditorialViews:
             repo=dict(name='GitHub',description='Los proyectos públicos aparecen al conectar con GitHub.')
             stats='Solo información publica'; number='Sin proyectos'
         self.paragraph('awayrepo',430,137,316,repo['name'],2,0,bg=c['card'])
-        self.paragraph('awaydescription',430,225,316,repo.get('description') or 'Código y documentación de este proyecto en GitHub.',2,0,c['ink'],c['card'])
+        self.paragraph('awaydescription',430,225,316,repo.get('description') or 'Código y documentación de este proyecto en GitHub.',3,2,c['muted'],c['card'])
         self.text('awaystats',430,311,318,25,2,self.fit(stats,318),c['mint'],c['card'])
         self.soft_button('projectprev',430,343,70,32,'<')
         self.text('projectnumber',506,345,168,28,2,number,c['muted'],c['card'],1)

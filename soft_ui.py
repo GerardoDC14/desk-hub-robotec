@@ -41,12 +41,19 @@ class SoftUI:
 
     def duration_picker(self,key,seconds,presets):
         c=self.theme
-        self.icon_button(key+'minus',238,207,29,'minus')
-        self.icon_button(key+'plus',562,207,29,'plus')
-        self.digital(key+'value',294,159,212,86,str(max(0,int(seconds)//60)),1,c['ink'],c['bg'])
-        self.text(key+'unit',294,247,212,28,2,('minutos / editar' if int(seconds)%60==0 else f'minutos {int(seconds)%60:02} s'),c['muted'],c['bg'],1)
+        self.panel(key+'picker',188,158,424,118,c['card'],24)
+        self.icon_button(key+'minus',238,207,29,'minus',surface=c['card'])
+        self.icon_button(key+'plus',562,207,29,'plus',surface=c['card'])
+        self.digital(key+'value',294,159,212,86,str(max(0,int(seconds)//60)),1,c['mint'],c['card'])
+        self.text(key+'unit',294,245,212,26,2,('minutos / editar' if int(seconds)%60==0 else f'minutos {int(seconds)%60:02} s'),c['muted'],c['card'],1)
         for i,(minutes,title) in enumerate(presets):
-            self.soft_button(key+'preset'+str(i),194+i*140,283,132,40,title,seconds==minutes*60)
+            self.quiet_choice(key+'preset'+str(i),194+i*140,283,132,40,title,seconds==minutes*60)
+
+    def quiet_choice(self,key,x,y,w,h,title,selected=False,font=2):
+        """Opción secundaria: superficie tenue y acento solo en la selección."""
+        c=self.theme; bg=c['button'] if selected else c['card']
+        self.panel('choice:'+key,x,y,w,h,bg,14)
+        self.text(key,x+8,y+2,w-16,h-4,font,title,c['mint'] if selected else c['ink'],bg,1)
 
     def digital(self,key,x,y,w,h,value,font,foreground,background):
         widths = [text_width(c,font)+2 for c in value]

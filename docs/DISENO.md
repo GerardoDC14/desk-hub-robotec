@@ -2,12 +2,15 @@
 
 El panel utiliza seis destinos principales: Inicio, Spotify, Tiempo, Fuera, Tareas y Cámara. La navegación inferior conserva su posición y destaca el destino actual con una superficie redondeada. La acción principal usa verde claro; las acciones secundarias utilizan una superficie oscura. Los controles de duración admiten ajuste por pasos, valores frecuentes y entrada directa al tocar la cifra.
 
-[Archivo editable en Figma](https://www.figma.com/design/haO2a7ZleMYs7osOep2Ycr/Desk-Hub-Robotec-%E2%80%94-simplificar-y-pulir) en la página **02 · Reproductor y accesos**, con las composiciones de 800 × 480. Contiene capas de texto y vectores editables. Inter sirve como referencia en Figma; la pantalla utiliza las fuentes incorporadas en el HMI. Las imágenes de esta guía reconstruyen los comandos de dibujo con datos de demostración y tipografía aproximada.
+[Archivo editable en Figma](https://www.figma.com/design/haO2a7ZleMYs7osOep2Ycr/Desk-Hub-Robotec-%E2%80%94-simplificar-y-pulir) en la página **02 · Reproductor y accesos**, en el marco **Inicio, Tiempo y Fuera · pulido visual · 800 × 480**, con las composiciones actuales. Contiene capas de texto y vectores editables. Inter sirve como referencia en Figma; la pantalla utiliza las fuentes incorporadas en el HMI. Las imágenes de esta guía reconstruyen los comandos de dibujo con datos de demostración y tipografía aproximada.
 
 ## Legibilidad y controles
 
 - Fondo grafito, texto claro y acento verde suave; la portada no cambia la paleta del reproductor.
 - El reproductor sitúa la portada de 344 × 344 a la izquierda. A la derecha aparecen canción, artista y nombre del álbum, progreso, controles de reproducción y volumen. El título utiliza la fuente grande cuando cabe y dos líneas de tamaño normal cuando necesita más espacio. Los símbolos de anterior y siguiente están centrados como un conjunto de triángulo y barra.
+- Inicio agrupa temperatura, condición y datos del clima en una tarjeta. La hora conserva el mayor tamaño y la música tiene su propia zona con una acción visible.
+- Tiempo comparte una barra de modos y superficies redondeadas para duración, cronómetro y alarma. Los valores frecuentes son secundarios frente a Iniciar; los botones conservan sus zonas táctiles.
+- Fuera utiliza el mismo selector de duración. Durante la salida, la hora de regreso domina la vista y los proyectos públicos se presentan en una tarjeta separada, con el desbloqueo siempre accesible.
 - Las zonas táctiles deben conservar la geometría de los controles visibles. Al modificar un control, revisa tanto su dibujo como su manejo del toque.
 - La vista ambiental puede utilizar colores derivados de la portada. Un toque vuelve al panel antes del bloqueo; después se requiere el PIN.
 

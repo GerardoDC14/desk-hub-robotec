@@ -65,38 +65,46 @@ class DashboardViews:
 
     def render_time(self):
         c=self.theme
+        self.panel('timemodes',24,80,752,44,c['card'],18)
         for i,(mode,title) in enumerate([('timer','Temporizador'),('watch','Cronómetro'),('alarm','Alarma')]):
-            self.soft_button('mode'+mode,24+i*254,80,244,44,title,self.time_mode==mode,0)
+            if self.time_mode==mode:
+                self.soft_button('mode'+mode,24+i*254,80,244,44,title,True,0)
+            else:self.text('mode'+mode,32+i*254,82,228,40,0,title,c['muted'],c['card'],1)
         self.cache['timemode']=self.time_mode
         if self.time_mode=='alarm':
+            self.panel('alarmpicker',188,148,424,128,c['card'],24)
             field=getattr(self,'alarm_field','minute')
             for name,x,value in [('hour',286,self.alarm.data['hour']),('minute',414,self.alarm.data['minute'])]:
-                self.text('alarm'+name,x,158,100,86,1,f'{value:02}',c['mint'] if field==name else c['ink'],c['bg'],1)
-            self.text('alarmcolon',386,158,28,86,1,':',c['ink'],c['bg'],1)
-            self.icon_button('alarmminus',238,207,29,'minus'); self.icon_button('alarmplus',562,207,29,'plus')
-            self.text('alarmselect',294,247,212,28,2,'Toca hora o minutos',c['muted'],c['bg'],1)
+                self.text('alarm'+name,x,158,100,86,1,f'{value:02}',c['mint'] if field==name else c['ink'],c['card'],1)
+            self.text('alarmcolon',386,158,28,86,1,':',c['ink'],c['card'],1)
+            self.icon_button('alarmminus',238,207,29,'minus',surface=c['card']); self.icon_button('alarmplus',562,207,29,'plus',surface=c['card'])
+            self.text('alarmselect',294,245,212,26,2,'Toca hora o minutos',c['muted'],c['card'],1)
             self.text('alarmvolume',132,282,212,36,2,'Volumen del aviso',c['muted'],c['bg'])
             self.progress('alarmvol',360,296,308,self.alarm.data['volume']/100,c['mint'])
             self.text('alarmpercent',684,282,84,36,2,str(self.alarm.data['volume'])+'%',c['ink'],c['bg'],2)
             self.soft_button('alarmtoggle',240,342,320,56,'Desactivar' if self.alarm.data['enabled'] else 'Activar alarma',True,0)
-            self.text_action('alarmtest',600,342,168,56,'Probar sonido')
+            self.soft_button('alarmtest',600,342,168,56,'Probar sonido')
             deadline=self.alarm.data['deadline']
             status='Programada: '+dt.datetime.fromtimestamp(deadline).strftime('%d/%m · %H:%M') if deadline else 'Se repite hasta detenerla, hasta 3 minutos'
             self.text('alarmhint',32,400,736,23,2,status,c['muted'],c['bg'],1)
             return
         watch=self.time_mode=='watch'
         if watch:
-            self.digital('watchvalue',48,166,450,92,self.hms(self.elapsed()),1,c['ink'],c['bg'])
-            self.analog('watchdial',638,215,69,self.elapsed(),c['muted'],c['mint'],c['bg'])
+            self.panel('watchface',32,148,736,176,c['card'],24)
+            self.digital('watchvalue',48,166,450,92,self.hms(self.elapsed()),1,c['ink'],c['card'])
+            self.analog('watchdial',638,223,61,self.elapsed(),c['muted'],c['mint'],c['card'])
             last=self.watch.get('laps',[])
             detail='Listo para comenzar' if not last else 'Ultima vuelta / '+self.hms(last[-1])
-            self.text('watchdetail',48,282,704,40,2,detail,c['muted'],c['bg'],1)
+            self.text('watchdetail',48,278,450,36,2,detail,c['muted'],c['card'],1)
         else:
             self.text('selectedtimer',32,133,736,24,2,NAMES[self.timers.selected],c['muted'],c['bg'],1)
             self.duration_picker('timer',self.timer.remaining(),[(5,'5 / Descanso'),(25,'25 / Enfoque'),(60,'1 hora')])
         elapsed=self.elapsed()>0 if watch else self.timer.remaining()<self.timer.data['duration']
         self.soft_button('start',240,342,320,56,'Continuar' if elapsed else 'Iniciar',True,0)
-        self.text_action('reset',600,342,168,56,'Reiniciar' if elapsed else '')
+        if elapsed:self.soft_button('reset',600,342,168,56,'Reiniciar')
+        elif 'button:reset' in self.cache:
+            self.fill(600,342,168,56,c['bg'])
+            self.cache.pop('button:reset',None); self.cache.pop('reset',None)
 
     def render_running(self):
         c=self.theme
@@ -111,7 +119,8 @@ class DashboardViews:
             text='Marcar vuelta' if not last else 'Vuelta '+str(self.watch.get('lap_count',len(last)))+' / '+self.hms(last[-1])
             self.button('runlap',124,412,552,36,text)
         else:
-            self.digital('runningtime',24,145,752,155,self.countdown(),3,c['ink'],c['bg'])
+            self.panel('runningface',32,136,736,188,c['card'],24)
+            self.digital('runningtime',48,145,704,155,self.countdown(),3,c['ink'],c['card'])
             self.progress('runbar',124,309,552,1-self.timer.remaining()/max(1,self.timer.data['duration']),c['coral'])
         self.button('runpause',124,342,266,58,'Pausar',True)
         self.button('runreset',410,342,266,58,'Reiniciar')
