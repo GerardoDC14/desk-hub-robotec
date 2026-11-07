@@ -15,12 +15,14 @@ Vista reconstruida desde los comandos de dibujo, con datos de demostración y ti
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
 - **Spotify:** portada progresiva de 96 × 96, iconos suavizados, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, colores de portada, desplazamiento de títulos largos y estados de conexión.
 - **Música guardada:** hasta 24 canciones o episodios elegidos desde el panel, con reproducción, eliminación y deshacer. La selección se guarda localmente y no modifica las listas de Spotify.
-- **Cámara opcional:** encuadre continuo local, disparo con cuenta de tres segundos, timelapse, álbum de miniaturas, presentación y siete opciones de imagen. Guarda copias con efectos sin modificar las fotos originales; los archivos permanecen privados en la Pi.
+- **Cámara opcional:** encuadre continuo local, disparo con cuenta de tres segundos, timelapse, álbum por fechas y sesiones, favoritos, giros, presentación y siete opciones de imagen. Incluye cabina de cuatro fotos y exportación de timelapses a MP4 con FFmpeg. Guarda copias con efectos sin modificar las fotos originales; los archivos permanecen privados en la Pi.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
 - **Pantalla y bloqueo:** vista ambiental tras un tiempo de inactividad configurable, seguida de bloqueo con PIN después de otro intervalo. La vista ambiental muestra hora, música y la cuenta de tiempo activa.
 - **Estado:** conexión local, salida de audio, Spotify, pantalla y reconexión manual del receptor.
 - **Uso compartido:** guía accesible sin desbloquear, bloqueo por inactividad y confirmación antes de interrumpir música mediante reconexión.
 - **Persistencia:** SQLite conserva cuentas, sesiones de enfoque, preferencias y música guardada entre reinicios.
+
+- **Teléfono:** enlace QR temporal para música, cuentas, encuadre de cámara y descargas de originales, selección ZIP o vídeos. Consulta [Panel del teléfono](docs/TELEFONO.md).
 
 ## Requisitos
 

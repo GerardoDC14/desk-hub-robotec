@@ -50,7 +50,7 @@ class BoundedServer(ThreadingHTTPServer):
 class PhoneServer:
     def __init__(self,dispatch,owner,html,port=8765):
         self.dispatch=dispatch;self.owner=owner;self.html=html;self.port=port
-        self.access=PhoneAccess();self.server=None;self.origin='';self.lock=threading.Lock();self.closing=None
+        self.access=PhoneAccess();self.server=None;self.origin='';self.lock=threading.Lock();self.closing=None;self.media_slots=threading.BoundedSemaphore(2)
 
     def begin(self,address):
         address=str(ipaddress.IPv4Address(address))
@@ -94,13 +94,18 @@ class PhoneServer:
                             self.reply(200 if token else 401,{'session':token} if token else {'error':'El QR caducó o ya se utilizó'});return
                         token=self.headers.get('Authorization','').removeprefix('Bearer ')
                         if not outer.access.valid(token):self.reply(401,{'error':'Enlace cerrado. Genera otro QR en el Hub.'});return
-                        if post and route.path=='/api/command':action='command'
-                        elif not post and route.path in ('/api/state','/api/photos','/api/photo','/api/thumb','/api/frame'):
+                        if post and route.path in ('/api/command','/api/archive'):action=route.path.rsplit('/',1)[1]
+                        elif not post and route.path in ('/api/state','/api/photos','/api/photo','/api/thumb','/api/frame','/api/videos','/api/video'):
                             action=route.path.rsplit('/',1)[1];data={k:v[0] for k,v in parse_qs(route.query).items()}
                         else:self.reply(404,{'error':'No disponible'});return
-                        status,result,kind=outer.dispatch(action,data,token)
-                        if not outer.access.valid(token) or not outer.owner():self.reply(401,{'error':'Acceso cerrado'});return
-                        self.reply(status,result,kind)
+                        media=action in ('archive','photo','thumb','frame','video')
+                        if media and not outer.media_slots.acquire(blocking=False):self.reply(503,{'error':'Espera a que termine la otra descarga'});return
+                        try:
+                            status,result,kind=outer.dispatch(action,data,token)
+                            if not outer.access.valid(token) or not outer.owner():self.reply(401,{'error':'Acceso cerrado'});return
+                            self.reply(status,result,kind)
+                        finally:
+                            if media:outer.media_slots.release()
                     except (ValueError,KeyError,TypeError):self.reply(400,{'error':'Solicitud no válida'})
                     except (OSError,TimeoutError):pass
                     except Exception:self.reply(503,{'error':'El Hub está ocupado; vuelve a intentar'})

@@ -25,6 +25,8 @@ from notion_board import NotionBoard, NotionViews
 from guest_access import GuestAccess, GuestViews
 from phone_views import PhoneViews
 from photobooth import Photobooth,BoothViews
+from video_export import VideoExporter
+from video_views import VideoViews
 from music_client import MusicClient
 from music_state import position_ms, control_ready
 from nextion_link import NextionLink
@@ -113,7 +115,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -165,6 +167,8 @@ class Robotec(BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleC
         except OSError: self.camera=None
         self.photos=PhotoLibrary(self.camera) if self.camera else None
         self.booth=Photobooth(self.camera,self.photos) if self.camera else None
+        try: self.videos=VideoExporter(self.directory,self.photos) if self.photos else None
+        except (OSError,ValueError): self.videos=None
         row = self.db.execute("SELECT value FROM state WHERE key='stopwatch'").fetchone()
         if row:
             self.watch = json.loads(row[0])
@@ -248,6 +252,7 @@ class Robotec(BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleC
         self._notion_selected=None
         self.ambient_since=None
         self.unlocked=False
+        if getattr(self,'videos',None): self.videos.cancel()
         if getattr(self,'booth',None): self.booth.cancel()
         if getattr(self,'photos',None): self.photos.lock()
         if getattr(self,'camera',None): self.camera.lock()
@@ -381,6 +386,8 @@ class Robotec(BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleC
         if self.screen=='gallery': self.touch_gallery(x,y); return
         if self.screen=='timers': self.touch_timers(x,y); return
         if self.screen=='notion': self.touch_notion(x,y); return
+        if self.screen=='videos': self.touch_videos(x,y); return
+        if self.screen=='camera' and 496<=x<616 and 12<=y<52:self.navigate('videos');return
         if self.screen=='booth': self.touch_booth(x,y); return
         if self.screen=='phone': self.touch_phone(x,y); return
         if self.screen=='sharing': self.touch_sharing(x,y); return
@@ -540,7 +547,7 @@ class Robotec(BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleC
         with self.lock:
             n=self.network.copy(); m=self.music.copy(); repos=self.repos.copy()
         now=dt.datetime.now()
-        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings','phone','sharing','booth'):
+        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings','phone','sharing','booth','videos'):
             self.draw_connection_badge()
         if self.screen=='display_settings': self.draw_display_settings(); return
         if self.screen=='help': self.draw_help(); return
@@ -575,6 +582,7 @@ class Robotec(BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleC
         elif self.screen=='camera': self.draw_camera()
         elif self.screen=='timers': self.draw_timers()
         elif self.screen=='notion': self.draw_notion()
+        elif self.screen=='videos': self.draw_videos()
         elif self.screen=='booth': self.draw_booth()
         elif self.screen=='phone': self.draw_phone()
         elif self.screen=='sharing': self.draw_sharing()
@@ -701,6 +709,7 @@ if __name__=='__main__':
             if hub.music_event_process and hub.music_event_process.poll() is None:
                 hub.music_event_process.terminate()
             if getattr(hub,'phone',None): hub.phone.close()
+            if getattr(hub,'videos',None): hub.videos.close()
             if getattr(hub,'booth',None): hub.booth.cancel()
             if getattr(hub,'photos',None): hub.photos.close()
             hub.alert_sound.silence(); hub.alert_sound.thread.join(3); hub.db.close(); os.close(hub.fd)

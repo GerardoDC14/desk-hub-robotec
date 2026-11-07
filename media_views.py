@@ -15,7 +15,8 @@ class MediaViews:
         if not library: return
         state=library.grid(getattr(self,'_album_page',0),unlocked=self.unlocked)
         self._album_page=state['page']; self._album_names=[i['name'] for i in state['items']]
-        self.text('albumtitle',32,62,528,30,0,'Tus momentos',c['ink'],c['bg'])
+        self.text('albumtitle',32,62,300,30,0,'Tus momentos',c['ink'],c['bg'])
+        self.soft_button('albumgroups',344,58,224,38,'Álbumes',False,2)
         self.soft_button('albumtrash',600,58,168,38,'Papelera',False,2)
         identity=tuple(i['key'] for i in state['items'])
         if self.cache.get('album-layout')!=identity:
@@ -38,7 +39,7 @@ class MediaViews:
                 coarse.extend(a); detail.extend(b); self._album_painted.add(key)
             elif not pixels:
                 self.text('thumbwait'+str(i),x+12,y+48,200,30,2,'No disponible' if item['error'] else 'Cargando…',c['muted'],c['card'],1)
-            label=self.photo_caption(item['name'])
+            label=('Favorita / ' if item.get('favorite') else '')+self.photo_caption(item['name'])
             self.text('thumbcaption'+str(i),x,y+128,224,22,2,self.fit(label,224),c['ink'],c['bg'])
         if coarse or detail: self.media_art(coarse+detail)
         self.soft_button('albumbefore',32,418,144,44,'Anterior')
@@ -136,12 +137,13 @@ class MediaViews:
         if 632<=x<768 and 12<=y<52:
             self.navigate('status' if screen=='viewfinder' else 'viewfinder' if screen=='gallery_grid' else 'gallery_grid'); return True
         if screen=='gallery_grid':
+            if 344<=x<568 and 58<=y<96:self._group_page=0;self.photo_dialog('collections');return True
             if 600<=x<768 and 58<=y<96:
                 self.photo_dialog('trash_list'); return True
             if 496<=x<616 and 12<=y<52:
                 state=self.photos.grid(getattr(self,'_album_page',0),unlocked=True)
                 if state['count']:
-                    self.photos.select(state['page']*6,unlocked=True); self.photos.set_filter('Original',unlocked=True)
+                    self.photos.select(state['items'][0]['name'],unlocked=True); self.photos.set_filter('Original',unlocked=True)
                     self._show_play=True; self.navigate('photo_show')
                 return True
             if 418<=y<462:

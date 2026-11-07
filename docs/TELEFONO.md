@@ -22,7 +22,9 @@ Cada cuenta tiene su propia duración y controles para iniciar, pausar y reinici
 
 ## Fotos y cámara
 
-**Fotos** muestra seis miniaturas por página. **Descargar** entrega el JPEG original, sin reducirlo ni modificarlo. Pulsa **Actualizar** después de una captura. La papelera se gestiona desde la pantalla del Hub.
+**Fotos** muestra seis miniaturas por página. **Descargar** entrega el JPEG original, sin reducirlo ni modificarlo. Pulsa **Actualizar** después de una captura. La papelera se gestiona desde la pantalla del Hub. Marca **Seleccionar** bajo varias fotos y pulsa **Descargar selección** para recibir un ZIP con los originales: hasta seis fotos y 24 MiB por descarga. Los giros del álbum se reflejan en las miniaturas, pero no modifican el original descargado. Para descargar un giro o filtro aplicado, guarda primero una copia desde el Hub.
+
+Debajo del álbum, **Timelapses en vídeo** muestra los MP4 exportados desde Cámara → Vídeos, con duración y tamaño. Pulsa **Descargar MP4**. Si acabas de exportar, pulsa Actualizar; el vídeo no se reproduce ni descarga automáticamente.
 
 En **Cámara**, pulsa **Activar cámara** para ver el encuadre. La captura continua es de 640 × 360 píxeles y hasta cuatro encuadres por segundo; la velocidad efectiva depende de la red y la carga de la Pi. La Nextion conserva su vista optimizada para el enlace serie. La vista en directo no guarda fotos.
 

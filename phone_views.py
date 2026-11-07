@@ -4,7 +4,8 @@ import os
 import queue
 import threading
 import time
-from PIL import Image
+import zipfile
+from PIL import Image,ImageOps
 from phone_server import PhoneServer
 from phone_html import HTML
 from timer_bank import NAMES
@@ -22,6 +23,29 @@ class PhoneViews:
 
     def phone_dispatch(self,action,data,token):
         if not self.owner() or not self.phone.access.valid(token):return 401,{'error':'Acceso cerrado'},JSON
+        if action=='archive':
+            names=data.get('names')
+            if not isinstance(names,list) or not 1<=len(names)<=6 or any(not isinstance(n,str) for n in names) or len(set(names))!=len(names):raise ValueError('Selección')
+            out=io.BytesIO();size=0
+            with zipfile.ZipFile(out,'w',compression=zipfile.ZIP_STORED) as archive:
+                for name in names:
+                    code,raw,kind=self.phone_dispatch('photo',{'name':name},token)
+                    if code!=200:return code,raw,kind
+                    size+=len(raw)
+                    if size>24*1024*1024:return 413,{'error':'La selección supera 24 MiB. Descarga menos fotos a la vez.'},JSON
+                    archive.writestr(name,raw)
+            return 200,out.getvalue(),'application/zip'
+        if action in ('videos','video'):
+            videos=getattr(self,'videos',None)
+            if not videos:return 404,{'error':'Vídeos no disponibles'},JSON
+            if action=='videos':return 200,{'videos':videos.entries()},JSON
+            path,info=videos.file(data.get('name',''))
+            fd=os.open(path,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)|getattr(os,'O_BINARY',0))
+            with os.fdopen(fd,'rb') as stream:
+                if self.photos._signature(os.fstat(stream.fileno()))!=self.photos._signature(info):raise ValueError('Vídeo cambiado')
+                raw=stream.read(32*1024*1024+1)
+            if len(raw)>32*1024*1024:raise ValueError('Tamaño')
+            return 200,raw,'video/mp4'
         if action=='frame':
             self.phone_frame_seen=time.monotonic()
             camera=getattr(self,'camera',None)
@@ -43,7 +67,9 @@ class PhoneViews:
             if action=='thumb':
                 with Image.open(io.BytesIO(raw)) as image:
                     if image.width*image.height>16_000_000:raise ValueError('Tamaño')
-                    image.thumbnail((320,180));out=io.BytesIO();image.convert('RGB').save(out,format='JPEG',quality=80);raw=out.getvalue()
+                    image=ImageOps.exif_transpose(image).convert('RGB');turns=library.catalog.meta(name)['rotation']
+                    if turns:image=image.rotate(-90*turns,expand=True)
+                    image.thumbnail((320,180));out=io.BytesIO();image.save(out,format='JPEG',quality=80);raw=out.getvalue()
             return 200,raw,'image/jpeg'
         job=dict(action=action,data=data,token=token,event=threading.Event(),until=time.monotonic()+2.5)
         try:self.phone_jobs.put_nowait(job)

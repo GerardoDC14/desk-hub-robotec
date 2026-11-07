@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import unittest
+import zipfile
 from unittest.mock import Mock
 from PIL import Image
 from phone_server import PhoneAccess,PhoneServer
@@ -73,6 +74,11 @@ class PhoneTests(unittest.TestCase):
         with Image.open(io.BytesIO(thumb)) as image:self.assertEqual(image.size,(320,180))
         with self.assertRaises(ValueError):h.phone_dispatch('photo',{'name':'../state.sqlite3'},token)
         self.assertEqual(path.read_bytes(),raw)
+        status,archive,kind=h.phone_dispatch('archive',{'names':[path.name]},token)
+        self.assertEqual((status,kind),(200,'application/zip'))
+        with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
+            self.assertEqual(zipped.namelist(),[path.name]);self.assertEqual(zipped.read(path.name),raw)
+        with self.assertRaises(ValueError):h.phone_dispatch('archive',{'names':[path.name]*7},token)
         h.unlocked=False;self.assertEqual(h.phone_dispatch('photo',{'name':path.name},token)[0],401)
 
     def test_camera_lease_and_explicit_actions(self):

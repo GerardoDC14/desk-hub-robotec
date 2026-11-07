@@ -33,17 +33,19 @@ class Photobooth:
     def __init__(self,camera,photos,clock=time.monotonic):
         self.camera=camera;self.photos=photos;self.clock=clock
         self.active=False;self.composing=False;self.names=[];self.result='';self.message='Cuatro fotos, un recuerdo.'
-        self.due=None;self.waiting=None;self.generation=0;self.thread=None
+        self.due=None;self.waiting=None;self.generation=0;self.thread=None;self.session_id=None
 
     def start(self,layout='Cuadrícula',effect='Original',frame='Claro',unlocked=False):
         if not unlocked or layout not in LAYOUTS or effect not in EFFECTS or frame not in FRAMES:return False
         c=self.camera
         with c._cv:
-            if self.active or self.composing or c._closed or c._busy or c._job or c._sequence or c._editing or getattr(c,'_booth_working',False) or not c.executable:
+            if self.active or self.composing or c._closed or c._busy or c._job or c._sequence or c._editing or getattr(c,'_booth_working',False) or getattr(c,'_video_working',False) or not c.executable:
                 self.message='Espera a que la cámara quede disponible.';return False
             count,size=c._usage()
             if count+5>MAX_PHOTOS or size+5*MAX_FILE_BYTES>MAX_STORAGE_BYTES:
                 self.message='Libera espacio para cuatro fotos y su composición.';return False
+            try:self.session_id=c.catalog.begin('cabina',3)
+            except (OSError,ValueError):self.message='No se pudo registrar la sesión.';return False
             self.generation+=1;self.active=True;c._booth_active=True
             self.layout=layout;self.effect=effect;self.frame=frame
             self.names=[];self.result='';self.waiting=None;self.due=self.clock()+3
@@ -54,7 +56,11 @@ class Photobooth:
         with c._cv:
             was=self.active or self.composing;self.generation+=1;self.active=False;self.due=None;self.waiting=None
             c._booth_active=False
-            if was:c._cancel('Cabina detenida');self.message='Sesión detenida. Se conservan las fotos tomadas.'
+            if was:
+                c._cancel('Cabina detenida');self.message='Sesión detenida. Se conservan las fotos tomadas.'
+                if self.session_id:
+                    try:c.catalog.record(self.session_id,state='detenida')
+                    except (OSError,ValueError):pass
 
     def poll(self,unlocked):
         if not self.active:return
@@ -67,6 +73,8 @@ class Photobooth:
                 if c._error or c._last_filename==self.waiting:
                     self.message=c._error or 'No se pudo guardar la foto.';self.active=False;c._booth_active=False;return
                 self.names.append(c._last_filename);self.waiting=None
+                try:c.catalog.record(self.session_id,c._last_filename)
+                except (OSError,ValueError):self.cancel();self.message='Fotos guardadas / no se pudo actualizar la sesión.';return
                 if len(self.names)==4:
                     self.active=False;self.composing=True;c._booth_working=True;self.due=None;self.message='Creando tu composición…'
                     self.thread=threading.Thread(target=self._compose,args=(self.generation,),daemon=True,name='desk-hub-photobooth');self.thread.start();return
@@ -93,6 +101,8 @@ class Photobooth:
                 if temporary.stat().st_size>MAX_FILE_BYTES or c._usage()[1]>MAX_STORAGE_BYTES:raise ValueError('Espacio')
                 os.link(temporary,c.directory/name);temporary.unlink();temporary=None
                 c._usage_cache=None;self.result=name;self.message='Tu composición y las cuatro fotos están guardadas.'
+                try:c.catalog.record(self.session_id,result=name,state='terminada')
+                except (OSError,ValueError):self.message='Composición guardada. No se pudo actualizar el grupo de la sesión.'
         except Exception:
             with c._cv:
                 if generation==self.generation:self.message='No se pudo crear la composición. Tus originales se conservan.'

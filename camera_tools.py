@@ -11,6 +11,7 @@ import io
 from PIL import Image
 from camera_preview import preview_command, read_mjpeg
 from font_metrics import text_width
+from photo_catalog import PhotoCatalog
 
 INTERVALS = (10, 30, 60)
 COUNTS = (12, 30, 60)
@@ -48,10 +49,11 @@ class CameraController:
         self.executable = which('rpicam-still') or which('libcamera-still')
         self.stream_executable = which('rpicam-vid') or which('libcamera-vid')
         self._stream_reader=stream_reader
+        self.catalog=PhotoCatalog(directory);self._session_id=None
         self._popen = popen; self._clock = clock; self._wall_clock = wall_clock
         self._cv = threading.Condition(threading.RLock())
         self._closed = False; self._job = None; self._busy = False; self._process = None; self._editing = False
-        self._booth_active=False; self._booth_working=False
+        self._booth_active=False; self._booth_working=False; self._video_working=False
         self._generation = 0; self._sequence = None; self._next_due = None
         self._kind = None; self._preview = None; self._latest_jpeg = None; self._preview_id = 0
         self._connected = None; self._last_filename = ''; self._error = ''
@@ -69,7 +71,7 @@ class CameraController:
                 self._usage_cache = cached
             _, files, size = cached
             return dict(status=self._status, connected=self._connected,
-                        available=bool(self.executable), busy=self._busy or self._job is not None or self._editing or self._booth_active or self._booth_working,
+                        available=bool(self.executable), busy=self._busy or self._job is not None or self._editing or self._booth_active or self._booth_working or self._video_working,
                         timelapse=self._sequence is not None, completed=self._completed,
                         requested=self._requested, last_filename=self._last_filename,
                         error=self._error, photo_count=files, storage_bytes=size,
@@ -94,7 +96,7 @@ class CameraController:
 
     def _enqueue(self, kind, unlocked, booth=False):
         with self._cv:
-            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing or self._booth_working or (self._booth_active and not booth):
+            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing or self._booth_working or self._video_working or (self._booth_active and not booth):
                 return False
             if not self.executable:
                 self._status = 'Instala rpicam-apps para usar la cámara'; return False
@@ -128,10 +130,12 @@ class CameraController:
     def start_timelapse(self, interval=30, count=12, unlocked=False):
         if interval not in INTERVALS or count not in COUNTS: return False
         with self._cv:
-            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing or self._booth_active or self._booth_working:
+            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing or self._booth_active or self._booth_working or self._video_working:
                 return False
             if not self.executable:
                 self._status = 'Instala rpicam-apps para usar la cámara'; return False
+            try:self._session_id=self.catalog.begin('timelapse',interval)
+            except (OSError,ValueError):self._status='No se pudo registrar la sesión de fotos';return False
             self._completed = 0; self._requested = count; self._error = ''
             self._sequence = dict(interval=interval, count=count)
             self._next_due = self._clock()
@@ -139,8 +143,15 @@ class CameraController:
             self._cv.notify_all()
             return True
 
+    def _finish_session(self,state):
+        if self._session_id:
+            try:self.catalog.record(self._session_id,state=state)
+            except (OSError,ValueError):self._error="Fotos guardadas / no se pudo actualizar el álbum"
+            self._session_id=None
+
     def _cancel(self, status):
         with self._cv:
+            self._finish_session('detenida')
             self._generation += 1; self._sequence = None; self._next_due = None; self._job = None
             self._preview = None; self._latest_jpeg = None
             process = self._process
@@ -182,6 +193,7 @@ class CameraController:
                 # El hilo sigue disponible aunque una herramienta o unidad falle.
                 with self._cv:
                     if generation == self._generation:
+                        self._finish_session('detenida')
                         self._error = 'No se pudo completar la operación de cámara'
                         self._status = self._error; self._sequence = None; self._next_due = None
             finally:
@@ -198,6 +210,7 @@ class CameraController:
                 if kind == 'capture':
                     if not self._room():
                         self._status = 'Almacenamiento lleno / retira fotos de la Pi'
+                        self._finish_session('detenida')
                         self._error = self._status; self._sequence = None; self._next_due = None
                         return
                     stamp = time.strftime('%Y%m%d-%H%M%S', time.localtime(self._wall_clock()))
@@ -234,6 +247,7 @@ class CameraController:
                 if self._closed or generation != self._generation: return
                 if process.returncode:
                     self._error = 'No se pudo abrir la cámara / revisa el cable con la Pi apagada'
+                    self._finish_session('detenida')
                     self._status = self._error; self._connected = False
                     self._sequence = None; self._next_due = None
                     return
@@ -253,6 +267,7 @@ class CameraController:
                 size = temporary.stat().st_size
                 files, total = self._usage()
                 if size <= 0 or size > MAX_FILE_BYTES or files > MAX_PHOTOS or total > MAX_STORAGE_BYTES:
+                    self._finish_session('detenida')
                     self._error = 'Foto vacía o límite de almacenamiento alcanzado'
                     self._status = self._error; self._sequence = None; self._next_due = None
                     return
@@ -261,9 +276,11 @@ class CameraController:
                 self._usage_cache = None
                 self._last_filename = filename; self._connected = True
                 if self._sequence:
+                    self.catalog.record(self._session_id,filename)
                     self._completed += 1
                     self._status = f'Timelapse / {self._completed} de {self._requested} fotos'
                     if self._completed >= self._requested:
+                        self._finish_session('terminada')
                         self._sequence = None; self._next_due = None; self._status = 'Timelapse terminado'
                 else:
                     self._status = 'Foto guardada en la Raspberry'
@@ -332,7 +349,9 @@ class CameraViews:
             self.soft_button('cameracount'+str(value),532+i*80,272,76,36,str(value),count==value,2)
         self.soft_button('cameratimelapse',32,326,344,52,'Detener timelapse' if state['timelapse'] else 'Iniciar timelapse',state['timelapse'],0)
         self.soft_button('cameragallery',408,326,360,52,'Galería / '+str(state['photo_count'])+' fotos',False,0)
-        detail = str(state['photo_count'])+'/100 fotos / '+str(round(state['storage_bytes']/1048576,1))+' de 250 MiB'
+        average=max(100000,state['storage_bytes']/max(1,state['photo_count']))
+        estimate=average*count/1048576
+        detail = f"Captura ≈ {interval*(count-1)//60} min / ≈ {estimate:.1f} MiB · Álbum {state['photo_count']}/100 fotos"
         self.text('camerastorage',32,392,736,28,2,detail,c['muted'],c['bg'],1)
 
     def touch_camera(self,x,y):

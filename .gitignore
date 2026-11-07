@@ -8,6 +8,8 @@ __pycache__/
 lock.json
 notion.json
 notion-tasks.json
+photo-catalog.json
+videos/
 *.sqlite3*
 *.log
 spotify/

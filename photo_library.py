@@ -1,5 +1,6 @@
 """Galería privada y filtros locales; cada exportación conserva la foto original."""
 from collections import OrderedDict
+import datetime as dt
 import heapq
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import uuid
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import camera_tools as limits
+from photo_catalog import PhotoCatalog
 
 
 FILTERS = ('Original', 'B/N', 'Sepia', 'Negativo', 'Pop', 'Espejo', 'Boceto')
@@ -60,6 +62,7 @@ class PhotoLibrary:
     """
     def __init__(self, camera):
         self.camera = camera
+        self.catalog=getattr(camera,"catalog",None) or PhotoCatalog(Path(camera.directory).parent)
         self.directory = Path(camera.directory)
         if self.directory.is_symlink() or not self.directory.is_dir():
             raise ValueError('La galería requiere una carpeta privada regular')
@@ -68,6 +71,7 @@ class PhotoLibrary:
         self._clock = getattr(camera, '_clock', time.monotonic)
         self._closed = False; self._unlocked = False; self._access = 0; self._generation = 0
         self._photos = []; self._selected = ''; self._index = 0; self._filter = FILTERS[0]
+        self._collection='all'
         self._listed_at = float('-inf'); self._capture_seen = None
         self._preview = None; self._preview_key = None; self._original_size = None
         self._cache = OrderedDict(); self._failed_key = None
@@ -124,6 +128,9 @@ class PhotoLibrary:
         else:
             self._index = max(0, min(self._index, len(names)-1))
             self._selected = names[self._index] if names else ''
+        visible=self._visible_entries()
+        if self._collection!='all' and self._selected not in [v[0] for v in visible]:
+            self._selected=visible[0][0] if visible else ''
         current = next((entry for entry in entries if entry[0] == self._selected), None)
         if current != old:
             self._changed_locked()
@@ -147,7 +154,55 @@ class PhotoLibrary:
 
     def _key_locked(self):
         entry = next((entry for entry in self._photos if entry[0] == self._selected), None)
-        return (entry[0], entry[1], self._filter) if entry else None
+        return (entry[0], entry[1], self._filter,self.catalog.meta(entry[0])['rotation']) if entry else None
+
+    def _visible_entries(self):
+        collection=self._collection
+        if collection=='favorites':return [e for e in self._photos if self.catalog.meta(e[0])['favorite']]
+        if collection.startswith('date:'):
+            return [e for e in self._photos if dt.datetime.fromtimestamp(e[1][3]/1e9).strftime('%Y-%m-%d')==collection[5:]]
+        if collection.startswith('session:'):
+            session=next((s for s in self.catalog.sessions() if s['id']==collection[8:]),{})
+            names=session.get('names',[])+[session.get('result','')]
+            return [e for e in self._photos if e[0] in names]
+        return self._photos
+
+    def collections(self,unlocked=False):
+        with self._cv:
+            if not self._allowed_locked(unlocked):return []
+            self._refresh_locked();names={e[0] for e in self._photos}
+            result=[dict(id='all',label='Todas las fotos',count=len(names)),dict(id='favorites',label='Favoritas',count=sum(self.catalog.meta(n)['favorite'] for n in names))]
+            dates={}
+            for _,signature in self._photos:
+                date=dt.datetime.fromtimestamp(signature[3]/1e9).strftime('%Y-%m-%d');dates[date]=dates.get(date,0)+1
+            for date,count in sorted(dates.items(),reverse=True):result.append(dict(id='date:'+date,label=date,count=count))
+            for session in self.catalog.sessions():
+                count=len(names.intersection(session['names']+[session['result']]))
+                if count:
+                    label=('Cabina' if session['kind']=='cabina' else 'Timelapse')+' / '+dt.datetime.fromtimestamp(session['created']).strftime('%d/%m %H:%M')
+                    result.append(dict(id='session:'+session['id'],label=label,count=count))
+            return result
+
+    def set_collection(self,ident,unlocked=False):
+        with self._cv:
+            if ident not in [c['id'] for c in self.collections(unlocked)]:return False
+            self._collection=ident;visible=self._visible_entries();self._selected=visible[0][0] if visible else ''
+            self._changed_locked();return True
+
+    def edit_selected(self,operation,unlocked=False):
+        with self._cv:
+            if not self._allowed_locked(unlocked):return False
+            self._refresh_locked(force=True)
+            if not self._selected or self._saving or self.camera._busy or self.camera._job or self.camera._sequence or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False) or getattr(self.camera,'_video_working',False):return False
+            try:
+                meta=self.catalog.meta(self._selected)
+                if operation=='favorite':self.catalog.edit(self._selected,favorite=not meta['favorite'])
+                elif operation=='rotate':self.catalog.edit(self._selected,rotation=(meta['rotation']+1)%4)
+                elif operation=='upright':self.catalog.edit(self._selected,rotation=0)
+                else:return False
+                self._cache.clear();self._thumbs.clear();self._changed_locked();self._queue_preview_locked()
+                return True
+            except (OSError,ValueError):self._error='No se pudo guardar el ajuste';return False
 
     def _queue_preview_locked(self):
         key = self._key_locked()
@@ -176,8 +231,11 @@ class PhotoLibrary:
             status = ('Guardando copia…' if self._saving else self._error or self._message or
                       ('No hay fotos guardadas' if not self._photos else
                        'Preparando vista…' if self._preview is None else 'Fotos privadas en la Raspberry'))
+            visible=self._visible_entries();names=[e[0] for e in visible]
+            meta=self.catalog.meta(self._selected)
             return dict(status=status, busy=busy, saving=self._saving, ready=self._preview is not None,
-                        count=len(self._photos), index=self._index, filename=self._selected,
+                        count=len(visible), index=names.index(self._selected) if self._selected in names else 0, filename=self._selected,
+                        favorite=meta['favorite'],rotation=meta['rotation'],collection=self._collection,
                         filter=self._filter, filters=FILTERS, preview=self._preview,
                         preview_key=self._preview_key, original_size=self._original_size,
                         error=self._error, last_saved=self._last_saved)
@@ -189,6 +247,7 @@ class PhotoLibrary:
             if isinstance(selection, str):
                 names = [entry[0] for entry in self._photos]
                 if selection not in names: return False
+                if selection not in [e[0] for e in self._visible_entries()]:self._collection='all'
                 index = names.index(selection)
             elif isinstance(selection, int) and not isinstance(selection, bool):
                 if not self._photos: return False
@@ -206,23 +265,27 @@ class PhotoLibrary:
             if not self._allowed_locked(unlocked):
                 return dict(count=0, page=0, pages=1, items=[])
             self._refresh_locked()
-            pages=max(1,(len(self._photos)+5)//6); page=max(0,min(int(page),pages-1))
-            entries=self._photos[page*6:page*6+6]; missing=[]; items=[]
+            visible=self._visible_entries()
+            pages=max(1,(len(visible)+5)//6); page=max(0,min(int(page),pages-1))
+            entries=visible[page*6:page*6+6]; missing=[]; items=[]
             for name, signature in entries:
-                key=(name,signature,'Original')
+                key=(name,signature,'Original',self.catalog.meta(name)['rotation'])
                 if key not in self._thumbs: missing.append(key)
-                items.append(dict(name=name, key=key, preview=self._thumbs.get(key),
+                items.append(dict(name=name, key=key, favorite=self.catalog.meta(name)['favorite'],preview=self._thumbs.get(key),
                                   error=key in self._thumbs and self._thumbs[key] is None))
             if missing:
                 job=('thumbs',tuple(missing),0,self._access)
                 if self._working != job: self._thumb_job=job; self._cv.notify_all()
-            return dict(count=len(self._photos),page=page,pages=pages,items=items)
+            return dict(count=len(visible),page=page,pages=pages,items=items,collection=self._collection)
 
     def move(self, step, unlocked=False):
         with self._cv:
             if not self._allowed_locked(unlocked) or not isinstance(step, int) or isinstance(step, bool): return False
             self._refresh_locked(force=True)
-            return self.select(self._index+step, unlocked=True)
+            names=[e[0] for e in self._visible_entries()]
+            if not names:return False
+            index=names.index(self._selected) if self._selected in names else 0
+            return self.select(names[max(0,min(len(names)-1,index+step))], unlocked=True)
 
     def set_filter(self, name, unlocked=False):
         with self._cv:
@@ -239,11 +302,11 @@ class PhotoLibrary:
             self._refresh_locked(force=True)
             if not self._selected:
                 self._message = 'Primero toma una foto'; return False
-            if self._filter == 'Original':
+            if self._filter == 'Original' and self.catalog.meta(self._selected)['rotation']==0:
                 self._message = 'Elige un filtro para guardar una copia'; return False
             if self._saving: return False
             if (self.camera._busy or self.camera._job is not None or self.camera._sequence is not None
-                    or getattr(self.camera, '_editing', False) or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False)):
+                    or getattr(self.camera, '_editing', False) or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False) or getattr(self.camera,'_video_working',False)):
                 self._message = 'Espera a que termine la cámara'; return False
             files, size = self.camera._usage()
             if files >= limits.MAX_PHOTOS or size+limits.MAX_FILE_BYTES > limits.MAX_STORAGE_BYTES:
@@ -273,7 +336,7 @@ class PhotoLibrary:
         """Opera sólo sobre la revisión confirmada; nunca sobre otra selección."""
         with self._cv:
             if not self._allowed_locked(unlocked) or not self._root_valid(): return False
-            if self._saving or self.camera._busy or self.camera._job or self.camera._sequence or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False):
+            if self._saving or self.camera._busy or self.camera._job or self.camera._sequence or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False) or getattr(self.camera,'_video_working',False):
                 self._message='Espera a que termine la cámara'; return False
             try:
                 if action=='trash':
@@ -330,7 +393,7 @@ class PhotoLibrary:
         self._thread.join(timeout=2)
 
     def _read_image(self, key):
-        filename, signature, _ = key
+        filename, signature, _ = key[:3]
         with self._cv:
             path, info = self._file_info(filename)
             if self._signature(info) != signature:
@@ -348,7 +411,8 @@ class PhotoLibrary:
                 image = ImageOps.exif_transpose(source).convert('RGB')
             if self._signature(os.fstat(stream.fileno())) != signature:
                 raise ValueError('La foto cambió durante la lectura')
-            return image
+            turns=key[3] if len(key)>3 else 0
+            return image.rotate(-90*turns,expand=True) if turns else image
 
     def _worker(self):
         while True:

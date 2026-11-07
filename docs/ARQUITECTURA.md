@@ -81,3 +81,12 @@ La entrada automática admite 30, 60, 120 o 300 segundos, o Nunca. El retraso de
 El pronóstico se solicita junto con el clima actual. `weather_data.py` convierte instantes Unix a la zona configurada mediante `zoneinfo`, filtra horas pasadas y conserva hasta tres filas. El renderizado nunca consulta la red. Las filas vencidas o de una consulta marcada sin actualizar no sustituyen a las condiciones actuales. En Raspberry Pi OS se utiliza la base de zonas horarias del sistema; para ejecutar las pruebas en Windows, instala también `tzdata` en tu entorno Python.
 
 La pérdida del observador de eventos de Spotify invalida las órdenes del estado anterior y solicita una consulta inmediata. Una respuesta nueva del receptor permite recuperar los controles. Las órdenes pendientes tienen prioridad sobre consultas opcionales, con un límite de un segundo para observaciones locales. Con eventos disponibles, cada toque no provoca una consulta completa adicional.
+
+
+## Catálogo y exportación de medios
+
+`photo_catalog.py` mantiene favoritos, giros y sesiones en JSON privado con reemplazo atómico. `photo_library.py` aplica la orientación al renderizado y a las copias exportadas; los originales no se modifican. La navegación y la presentación utilizan la colección seleccionada. Las sesiones en curso no se reanudan al arrancar.
+
+`video_export.py` reserva la cámara mientras convierte una sesión con FFmpeg. Envía JPEG por stdin a un proceso sin shell, utiliza un hilo de codificación, limita tiempo y tamaño y publica el MP4 sólo tras cerrar correctamente el proceso. La cancelación invalida la generación y descarta la salida temporal. Las fotos de origen se identifican por nombre seguro y firma de archivo.
+
+El servidor del teléfono limita a dos las respuestas multimedia concurrentes. Los ZIP se construyen con un máximo de seis originales y 24 MiB, sin aceptar rutas arbitrarias. Los vídeos requieren la misma sesión temporal del anfitrión que las fotografías; bloquear revoca ese acceso. Las acciones explícitas del panel web cuentan como actividad, pero recibir encuadres o consultar estado no prolonga la sesión.

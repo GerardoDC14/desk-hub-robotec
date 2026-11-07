@@ -12,6 +12,7 @@ class GalleryViews:
 
     def draw_photo_dialog(self):
         action,item=self._photo_action; c=self.theme
+        if action in ('edit','collections'):self.draw_album_tools(action,item);return
         if action=='trash_list':
             entries=self.photos.trash_items(unlocked=self.unlocked)
             index=max(0,min(getattr(self,'_trash_index',0),len(entries)-1))
@@ -41,6 +42,7 @@ class GalleryViews:
     def touch_photo_dialog(self,x,y):
         if not self.unlocked: return False
         action,item=self._photo_action
+        if action in ('edit','collections'):return self.touch_album_tools(action,item,x,y)
         if 12<=y<52 and 632<=x<768 or 400<=y<452 and 48<=x<248:
             self.navigate(self.screen); return True
         if action=='trash_list':
@@ -60,6 +62,44 @@ class GalleryViews:
             self.navigate('gallery_grid')
             if success: self.photo_dialog('trash_list')
             else: self.photo_dialog('error')
+        return True
+
+    def draw_album_tools(self,action,item):
+        c=self.theme
+        self.text('albumtooltitle',32,72,736,46,0,'Organiza tus fotos' if action=='collections' else 'Ajusta tu foto',c['ink'],c['bg'])
+        if action=='collections':
+            groups=self.photos.collections(unlocked=True);page=max(0,min(getattr(self,'_group_page',0),(len(groups)-1)//4));self._group_page=page
+            self._group_items=groups[page*4:page*4+4]
+            for i,group in enumerate(self._group_items):
+                self.soft_button('albumgroup'+str(i),32,130+i*62,736,52,group['label']+' / '+str(group['count']),group['id']==self.photos._collection,0)
+            self.soft_button('groupprev',32,402,200,52,'Anterior')
+            self.text('grouppage',248,402,304,52,2,f'{page+1} / {max(1,(len(groups)+3)//4)}',c['muted'],c['bg'],1)
+            self.soft_button('groupnext',568,402,200,52,'Siguiente')
+        else:
+            meta=self.photos.catalog.meta(item['name'])
+            self.text('albumtoolname',32,140,736,38,2,self.fit(item['name'],736),c['muted'],c['bg'])
+            self.text('albumtoolstate',32,194,736,42,0,('Favorita' if meta['favorite'] else 'Sin marcar')+f" / Giro {meta['rotation']*90}°",c['mint'],c['bg'])
+            self.soft_button('photofavorite',32,270,224,58,'Quitar favorita' if meta['favorite'] else 'Marcar favorita',meta['favorite'],2)
+            self.soft_button('photorotate',288,270,224,58,'Girar 90°',False,0)
+            self.soft_button('photoupright',544,270,224,58,'Sin giro',False,0)
+            self.paragraph('albumtoolhint',32,358,736,'El original se conserva. Guardar copia exporta el giro y el filtro elegidos.',2,2)
+            self.soft_button('albumtoolback',248,416,304,46,'Volver a la foto')
+
+    def touch_album_tools(self,action,item,x,y):
+        if 632<=x<768 and 12<=y<52 or action=='edit' and 248<=x<552 and 416<=y<462:
+            self.navigate(self.screen);return True
+        if action=='collections':
+            for i,group in enumerate(getattr(self,'_group_items',[])):
+                if 32<=x<768 and 130+i*62<=y<182+i*62:
+                    self.photos.set_collection(group['id'],unlocked=True);self._album_page=0;self.navigate('gallery_grid');return True
+            if 402<=y<454 and (32<=x<232 or 568<=x<768):
+                self._group_page=max(0,getattr(self,'_group_page',0)+(-1 if x<232 else 1));self.photo_dialog('collections')
+        elif 270<=y<328:
+            operation='favorite' if 32<=x<256 else 'rotate' if 288<=x<512 else 'upright' if 544<=x<768 else None
+            if operation:
+                revision=self.photos.selected_revision(unlocked=True)
+                if revision==item and self.photos.edit_selected(operation,unlocked=True):self.navigate('gallery')
+                else:self.photo_dialog('error')
         return True
 
     def gallery_clear_preview(self):
@@ -83,7 +123,7 @@ class GalleryViews:
             self.soft_button('galleryfilter'+str(i),584,100+i*42,184,36,label,label==selected,2)
         self.soft_button('galleryprev',32,410,104,50,'Anterior',False,2)
         self.soft_button('gallerynext',456,410,104,50,'Siguiente',False,2)
-        self.soft_button('gallerysave',584,410,184,50,'Guardando...' if state and state['saving'] else 'Guardar copia',selected!='Original' and bool(count),2)
+        self.soft_button('gallerysave',584,410,184,50,'Guardando...' if state and state['saving'] else 'Guardar copia',(selected!='Original' or bool(state and state.get('rotation'))) and bool(count),2)
         filename=state['filename'] if state else ''
         message=state['status'] if state else 'Cámara no disponible'
         captured=getattr(self,'_capture_notice',None)
@@ -115,6 +155,10 @@ class GalleryViews:
         library=getattr(self,'photos',None)
         if not self.unlocked or not library: return False
         if getattr(self,'_photo_action',None): return self.touch_photo_dialog(x,y)
+        if 496<=x<616 and 12<=y<52:
+            item=library.selected_revision(unlocked=True)
+            if item:self.photo_dialog('edit',item)
+            return True
         if 400<=x<560 and 58<=y<96:
             item=library.selected_revision(unlocked=True)
             if item: self.photo_dialog('trash',item)
