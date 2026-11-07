@@ -55,7 +55,10 @@ class EditorialViews:
                 if self.screen=='music': self.soft_button('libraryopen',496,12,120,40,'Guardadas')
             elif self.screen in ('library','focus','camera'):
                 self.soft_button('subpageback',632,12,136,40,'Volver')
-            elif self.screen=='time': self.soft_button('focusopen',632,12,136,40,'Sesiones')
+            elif self.screen=='time':
+                self.soft_button('timersopen',496,12,120,40,'Ver todos')
+                self.soft_button('focusopen',632,12,136,40,'Sesiones')
+            elif self.screen=='timers': self.soft_button('timersback',632,12,136,40,'Volver')
             else: self.text('local',550,14,218,32,2,LOCATION,c['muted'],c['bg'],2)
             if self.screen=='status': self.soft_button('cameraopen',496,12,120,40,'Cámara')
             self.fill(32,426,736,1,c['button'])
@@ -87,7 +90,7 @@ class EditorialViews:
         for row,values in enumerate([['1','2','3'],['4','5','6'],['7','8','9'],['Borrar','0','Entrar']]):
             for col,title in enumerate(values):
                 self.soft_button('pin'+title,PIN_X+col*PIN_DX,PIN_Y+row*PIN_DY,104,62,title,title=='Entrar',0 if title.isdigit() else 2)
-        if self.timer.data['mode']=='away' and (self.timer.data['deadline'] is not None or getattr(self,'away_pending',False)):
+        if self.away_timer.data['mode']=='away' and (self.away_timer.data['deadline'] is not None or getattr(self,'away_pending',False)):
             self.soft_button('backaway',32,420,324,44,'Ver aviso de regreso')
 
     def draw_home(self,now,network,music,kind):
@@ -122,15 +125,15 @@ class EditorialViews:
         self.draw_home_activity(music)
 
     def draw_away(self,repos):
-        c=self.theme; deadline=self.timer.data['deadline'] or getattr(self,'away_return',None) or time.time()
-        pending=self.timer.data['deadline'] is None
+        c=self.theme; deadline=self.away_timer.data['deadline'] or getattr(self,'away_return',None) or time.time()
+        pending=self.away_timer.data['deadline'] is None
         self.text('awayheading',32,13,512,40,0,AWAY_LABELS[getattr(self,'away_label',0)]+'.',c['ink'],c['bg'])
         self.text('awaystatus',560,18,208,30,2,'SPOTIFY ACTIVO' if self.unlocked else 'SPOTIFY DESACTIVADO',c['muted'],c['bg'],2)
         self.text('awayreturnlabel',32,83,350,40,0,'REGRESO PENDIENTE' if pending else 'VUELVO A LAS',c['coral'],c['bg'])
         self.digital('awayreturn',24,132,366,142,dt.datetime.fromtimestamp(deadline).strftime('%H:%M'),3,c['ink'],c['bg'])
-        remaining='Hora prevista' if pending else 'Faltan '+self.countdown()
+        remaining='Hora prevista' if pending else 'Faltan '+self.countdown(away=True)
         self.text('awaycount',32,287,224,40,0 if self.text_width(remaining,0)<=224 else 2,remaining,c['coral'],c['bg'])
-        self.progress('awayprogress',32,345,216,1-self.timer.remaining()/max(1,self.timer.data['duration']),c['coral'])
+        self.progress('awayprogress',32,345,216,1-self.away_timer.remaining()/max(1,self.away_timer.data['duration']),c['coral'])
         self.text('awayprofile',32,362,224,28,2,'github.com/'+GITHUB_USER,c['muted'],c['bg'])
         if 'profileqr' not in self.images:
             try:
@@ -161,8 +164,8 @@ class EditorialViews:
         self.soft_button('awayunlock',552,416,216,44,'Bloquear' if self.unlocked else 'Desbloquear',True,0)
 
     def draw_away_setup(self):
-        c=self.theme; away=self.timer.data['mode']=='away'
-        seconds=self.timer.remaining() if away else 1800
+        c=self.theme; away=self.away_timer.data['mode']=='away'
+        seconds=self.away_timer.remaining() if away else 1800
         self.text('awaytitle',32,78,736,45,0,'¿En cuánto tiempo vuelves?',c['ink'],c['bg'],1)
         self.text_action('awayreason',32,124,736,32,AWAY_LABELS[getattr(self,'away_label',0)]+' / cambiar',True)
         self.duration_picker('away',seconds,[(15,'15 min'),(30,'30 min'),(60,'1 hora')])

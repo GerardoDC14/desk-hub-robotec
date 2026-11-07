@@ -104,11 +104,11 @@ class ExperienceTests(unittest.TestCase):
         value.open_duration('away'); value.duration_digits='120'; value.last_touch=0; value.touch(100,430)
         self.assertEqual(value.timer.remaining(),5400); self.assertEqual(value.screen,'away')
         value.open_duration('away'); value.duration_digits='120'; self.digit(value,'Guardar')
-        self.assertEqual(value.timer.data['mode'],'away'); self.assertEqual(value.timer.remaining(),7200)
+        self.assertEqual(value.away_timer.data['mode'],'away'); self.assertEqual(value.away_timer.remaining(),7200)
         self.assertTrue(value.unlocked); self.assertFalse(value.compact)
 
     def test_expired_away_retains_public_notice_and_lock(self):
-        value=hub(); value.timer.data.update(mode='away',duration=60,remaining=0,deadline=time.time()-1)
+        value=hub(); value.away_timer.data.update(mode='away',duration=60,remaining=0,deadline=time.time()-1)
         value.screen='away'; value.compact=True; value.unlocked=False; value.away_return=time.time()-61
         value.poll_tools(); self.assertTrue(value.away_pending); self.assertFalse(value.unlocked)
         self.assertEqual(value.screen,'away'); self.assertTrue(value.compact)

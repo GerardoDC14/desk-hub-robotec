@@ -1,6 +1,7 @@
 """Herramientas de tiempo y avisos; el PIN sigue controlando el acceso."""
 import datetime as dt
 import time
+from timer_bank import NAMES
 
 
 class DashboardViews:
@@ -93,6 +94,7 @@ class DashboardViews:
             detail='Listo para comenzar' if not last else 'Ultima vuelta / '+self.hms(last[-1])
             self.text('watchdetail',48,282,704,40,2,detail,c['muted'],c['bg'],1)
         else:
+            self.text('selectedtimer',32,133,736,24,2,NAMES[self.timers.selected],c['muted'],c['bg'],1)
             self.duration_picker('timer',self.timer.remaining(),[(5,'5 / Descanso'),(25,'25 / Enfoque'),(60,'1 hora')])
         elapsed=self.elapsed()>0 if watch else self.timer.remaining()<self.timer.data['duration']
         self.soft_button('start',240,342,320,56,'Continuar' if elapsed else 'Iniciar',True,0)
@@ -102,7 +104,8 @@ class DashboardViews:
         c=self.theme
         watch=self.time_mode=='watch'
         self.text_action('runninghome',32,12,176,44,'Inicio',False,0)
-        self.label('runningtitle',24,75,752,48,'Cronómetro' if watch else 'Temporizador',0,c['lilac'],c['bg'],1)
+        self.soft_button('runningaccounts',496,12,120,40,'Ver todos')
+        self.label('runningtitle',24,75,752,48,'Cronómetro' if watch else NAMES[self.timers.selected],0,c['lilac'],c['bg'],1)
         if watch:
             self.digital('runningtime',24,153,470,135,self.hms(self.elapsed()),1,c['ink'],c['bg'])
             self.analog('watchdial',638,213,88,self.elapsed(),c['muted'],c['mint'],c['bg'])
@@ -119,8 +122,9 @@ class DashboardViews:
         if not self.notice:
             self.notice={'title':title,'kind':kind,'previous':self.screen}
         else:
-            self.notice['title']=title
-            self.notice['kind']=kind
+            if not hasattr(self,'pending_notices'): self.pending_notices=[]
+            self.pending_notices.append((title,kind))
+            return
         self.dirty=True; self.cache.clear(); self.artwork.clear(); self.art_key=None
         self.notice['muted']=False
         if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'],kind=kind)
@@ -131,16 +135,14 @@ class DashboardViews:
         if changed:
             self.save()
             self.notify('Es la hora' if changed=='ring' else 'Alarma vencida', 'alarm' if changed=='ring' else 'missed')
-        if self.timer.data['deadline'] is not None and self.timer.remaining()==0:
-            mode=self.timer.data['mode']
-            self.timer.data.update(deadline=None,remaining=0)
-            self.save()
-            if mode=='away':
-                self.away_pending=True
-                self.save(); self.navigate('away')
-            else:
-                self.compact=False
-                self.notify('Tiempo cumplido','timer')
+        completed=self.timers.due()
+        if completed:
+            self.save(); self.compact=False
+            for name in completed: self.notify(name+' / listo','timer')
+        if self.away_timer.data['deadline'] is not None and self.away_timer.remaining()==0:
+            self.away_timer.data.update(deadline=None,remaining=0)
+            self.away_pending=True; self.save()
+            if not self.notice: self.navigate('away')
         focus_event=self.focus.poll()
         if focus_event:
             self.focus_notice=focus_event; self.save()
@@ -148,6 +150,8 @@ class DashboardViews:
             event=self.focus_notice; self.focus_notice=None
             self.notify(event['title'],'missed' if event['missed'] else 'focus')
             self.notice['previous']='focus' if self.unlocked else self.screen
+        if not self.notice and getattr(self,'pending_notices',None):
+            title,kind=self.pending_notices.pop(0); self.notify(title,kind)
 
     def render_notice(self):
         c=self.theme

@@ -152,7 +152,7 @@ class Experience:
                     value=int(self.duration_digits or '0')
                     if not 1<=value<=1440: self.duration_error='Elige entre 1 y 1440 minutos.'
                     else:
-                        if self.duration_edit=='away': self.timer.data=dict(mode='away',duration=value*60,remaining=value*60,deadline=None)
+                        if self.duration_edit=='away': self.away_timer.data=dict(mode='away',duration=value*60,remaining=value*60,deadline=None)
                         else: self.set_duration(value*60)
                         self.save(); self.navigate('away' if self.duration_edit=='away' else 'time')
                 elif len(self.duration_digits)<4:

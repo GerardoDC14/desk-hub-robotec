@@ -62,8 +62,11 @@ class FriendlyUI:
                 if x<208 or not self.home_activity()[0]: self.navigate('music'); return True
                 if self.focus.data['state'] in ('running','paused','waiting'):
                     self.navigate('focus'); return True
-                if self.timer.data['deadline'] is not None and self.timer.data['mode']!='away':
-                    self.time_mode='timer'; self.navigate('time'); return True
+                if self.active_timers():
+                    active=self.active_timers()
+                    if len(active)==1: self.select_timer(active[0][0])
+                    else: self.navigate('timers')
+                    return True
                 if self.watch['started'] is not None:
                     self.time_mode='watch'; self.navigate('time'); return True
                 if self.alarm.data['enabled']:
@@ -91,7 +94,9 @@ class FriendlyUI:
         if self.focus.data['state'] in ('running','paused','waiting'):
             label='Enfoque' if self.focus.data['phase']=='focus' else 'Descanso'
             return 'focus',label+' '+self.focus_clock(self.focus.remaining())
-        if self.timer.data['deadline'] is not None and self.timer.data['mode']!='away': return 'timer',self.countdown()
+        active=self.active_timers()
+        if active:
+            return 'timer',str(len(active))+' cuenta(s) / '+self.hms(min(t.remaining() for _,t in active))
         if self.watch['started'] is not None: return 'watch',self.hms(self.elapsed())
         if self.alarm.data['enabled']: return 'alarm','Alarma '+dt.datetime.fromtimestamp(self.alarm.data['deadline']).strftime('%H:%M')
         return '',''

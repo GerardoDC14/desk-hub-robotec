@@ -28,7 +28,7 @@ def hub():
     value.cache={}; value.artwork=deque(); value.art_key=None; value.images={}
     value.lock=threading.Lock(); value.screen='time'; value.compact=False; value.dirty=True
     value.unlocked=True; value.notice=None; value.pin_entry=''; value.pin_wait=0; value.pin_message='PIN'
-    value.time_mode='timer'; value.watch={'elapsed':0,'started':None}; value.timer=Timer()
+    value.time_mode='timer'; value.watch={'elapsed':0,'started':None}; value.timer=Timer(); value.init_timers()
     value.alarm=Alarm(); value.alert_sound=Sound(); value.repos=[]
     value.network={'weather':'28 °C','condition':'Zapopan','weather_code':0}
     value.music={'title':'Titulo','artist':'Artista','status':'paused','volume':30,'duration':200000,'is_active':True,'logged_in':True,'_ready':True,'uri':'track-a'}

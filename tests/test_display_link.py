@@ -60,7 +60,7 @@ class LinkTests(unittest.TestCase):
 class PublicDisplayTests(unittest.TestCase):
     def away(self):
         value=hub(); value.screen='away'; value.compact=True; value.unlocked=False
-        value.timer.mode('away'); value.repo_index=0; value.carousel_started=time.monotonic()
+        value.away_timer.mode('away'); value.repo_index=0; value.carousel_started=time.monotonic()
         value.repos=[dict(name='Proyecto '+str(i),language='Python',description='Descripcion',stargazers_count=0) for i in range(3)]
         value.images['profileqr']=[65535]*37**2
         return value
@@ -69,7 +69,7 @@ class PublicDisplayTests(unittest.TestCase):
         value=self.away(); value.touch(710,357)
         self.assertEqual(value.repo_index,1); self.assertFalse(value.unlocked)
         value.last_touch=0; value.touch(710,435)
-        self.assertEqual(value.screen,'lock'); self.assertIsNotNone(value.timer.data['deadline'])
+        self.assertEqual(value.screen,'lock'); self.assertIsNotNone(value.away_timer.data['deadline'])
         value.last_touch=0; value.touch(200,435)
         self.assertEqual(value.screen,'away'); self.assertFalse(value.unlocked)
 
@@ -112,8 +112,8 @@ class PublicDisplayTests(unittest.TestCase):
         self.assertTrue(any('"8°"' in c for c in commands))
 
     def test_long_away_duration_fits_remaining_time(self):
-        value=self.away(); value.timer.data.update(duration=7200,remaining=7200,deadline=None)
-        value.timer.toggle(); commands=[]; value.send=commands.append; value.render()
+        value=self.away(); value.away_timer.data.update(duration=7200,remaining=7200,deadline=None)
+        value.away_timer.toggle(); commands=[]; value.send=commands.append; value.render()
         count=next(c for c in commands if c.startswith('xstr') and 'Faltan' in c)
         fields=count.partition(' ')[2].split(',',10)
         self.assertLessEqual(value.text_width(fields[10].strip('"'),int(fields[4])),int(fields[2]))
@@ -125,17 +125,17 @@ class PublicDisplayTests(unittest.TestCase):
     def test_valid_pin_ends_away_and_allows_a_new_departure(self):
         value=self.away(); self.prepare_unlock(value)
         with patch('robotec.verify_pin',return_value=True): value.unlock_hub()
-        self.assertTrue(value.unlocked); self.assertIsNone(value.timer.data['deadline'])
-        self.assertEqual(value.timer.remaining(),1800); value.save.assert_called_once()
+        self.assertTrue(value.unlocked); self.assertIsNone(value.away_timer.data['deadline'])
+        self.assertEqual(value.away_timer.remaining(),1800); value.save.assert_called_once()
         value.navigate('away'); self.assertFalse(value.compact)
         value.touch(400,370)
         self.assertTrue(value.compact); self.assertFalse(value.unlocked)
-        self.assertGreater(value.timer.remaining(),1795)
+        self.assertGreater(value.away_timer.remaining(),1795)
 
     def test_bad_pin_does_not_cancel_away(self):
-        value=self.away(); self.prepare_unlock(value); deadline=value.timer.data['deadline']
+        value=self.away(); self.prepare_unlock(value); deadline=value.away_timer.data['deadline']
         with patch('robotec.verify_pin',return_value=False): value.unlock_hub()
-        self.assertFalse(value.unlocked); self.assertEqual(value.timer.data['deadline'],deadline)
+        self.assertFalse(value.unlocked); self.assertEqual(value.away_timer.data['deadline'],deadline)
         value.save.assert_not_called()
 
     def test_unlock_does_not_cancel_regular_timer(self):
