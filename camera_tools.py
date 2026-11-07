@@ -52,7 +52,7 @@ class CameraController:
         self._cv = threading.Condition(threading.RLock())
         self._closed = False; self._job = None; self._busy = False; self._process = None; self._editing = False
         self._generation = 0; self._sequence = None; self._next_due = None
-        self._kind = None; self._preview = None; self._preview_id = 0
+        self._kind = None; self._preview = None; self._latest_jpeg = None; self._preview_id = 0
         self._connected = None; self._last_filename = ''; self._error = ''
         self._completed = 0; self._requested = 0; self._usage_cache = None
         self._status = 'Cámara sin comprobar' if self.executable else 'Faltan herramientas de cámara'
@@ -113,7 +113,7 @@ class CameraController:
 
     def stop_preview(self):
         with self._cv:
-            self._preview = None
+            self._preview = None; self._latest_jpeg = None
             if self._kind != 'preview' and (not self._job or self._job[0] != 'preview'):
                 return
             self._generation += 1
@@ -141,7 +141,7 @@ class CameraController:
     def _cancel(self, status):
         with self._cv:
             self._generation += 1; self._sequence = None; self._next_due = None; self._job = None
-            self._preview = None
+            self._preview = None; self._latest_jpeg = None
             process = self._process
             self._status = status
             self._cv.notify_all()
@@ -289,7 +289,7 @@ class CameraController:
                     pixels=preview_pixels(image,size=(80,45),colors=128)
                 with self._cv:
                     if cancelled(): return
-                    self._preview=pixels; self._preview_id+=1; self._connected=True
+                    self._preview=pixels; self._latest_jpeg=raw; self._preview_id+=1; self._connected=True
                     self._status='Vista activa'
         finally:
             self._terminate(process)

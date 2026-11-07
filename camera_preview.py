@@ -30,7 +30,7 @@ class JpegFrames:
 
 def preview_command(executable):
     return [str(executable),'--nopreview','--timeout','0','--codec','mjpeg',
-            '--width','320','--height','180','--framerate','4','--quality','85','-o','-']
+            '--width','640','--height','360','--framerate','4','--quality','85','-o','-']
 
 
 def read_mjpeg(process, cancelled, clock=time.monotonic):

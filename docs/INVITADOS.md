@@ -20,3 +20,5 @@ Entrar como invitado no termina el aviso de regreso. Puede escuchar música y us
 El código de invitado no es una cuenta de Spotify ni cambia la cuenta conectada al receptor. La conexión musical se realiza desde Spotify después de desbloquear el Hub.
 
 Los códigos no se guardan en texto legible. El estado local conserva una derivación PBKDF2 con sal y fecha de vencimiento. El teclado limita los intentos incorrectos tanto para invitados como para el anfitrión.
+
+El botón **Teléfono** abre el [enlace local temporal del anfitrión](TELEFONO.md). Es independiente del código de invitado y permite acceder a la cámara y las fotos; no lo compartas como sustituto del acceso limitado.

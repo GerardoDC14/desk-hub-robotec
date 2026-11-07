@@ -120,3 +120,7 @@ python3 -m unittest discover -s tests -v
 Los tests cubren temporización, restauración, tramas UART, PIN, bloqueo, alarmas, sesiones de enfoque, biblioteca local, transferencias de reproducción, vueltas, conservación de píxeles y estabilización de la tipografía. Los de cámara simulan procesos, archivos y cancelaciones; la captura real requiere una cámara conectada y la comprobación descrita en su guía. El transporte negocia hasta 921600 baudios y vuelve a 115200 si falla el enlace; conserva las confirmaciones de dibujo y los eventos táctiles. Las rutas y servicios configurables requieren prueba de instalación en el equipo destino; los tests no verifican apagado físico ni ventilación.
 
 El clima procede de [Open-Meteo](https://open-meteo.com/) y los proyectos de la API pública de GitHub. [Spotify Soloist](https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates) se descarga por separado y conserva sus propios términos; no se incluyen ejecutables ni credenciales.
+
+## Panel del teléfono
+
+Abre **Estado → Invitados → Teléfono** con el PIN del anfitrión y genera un QR temporal. Desde la misma red puedes controlar música y cuentas, descargar fotos originales y ver la cámara por Wi-Fi. Consulta [uso, conexión y límites de privacidad](docs/TELEFONO.md).

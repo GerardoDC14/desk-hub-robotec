@@ -63,6 +63,7 @@ class GuestViews:
 
     def touch_sharing(self,x,y):
         if not self.owner():return
+        if 496<=x<616 and 12<=y<52:self.navigate('phone');return
         if 632<=x<768 and 12<=y<52:self.guest_code='';self.navigate('status');return
         if 370<=y<426:
             if 32<=x<256 or 288<=x<512:

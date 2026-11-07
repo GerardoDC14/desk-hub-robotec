@@ -87,8 +87,9 @@ class StreamTests(unittest.TestCase):
                 self.assertFalse(c.preview());self.assertTrue(c.preview(unlocked=True))
                 self.assertTrue(first.wait(2));self.assertEqual(c.snapshot()['preview_id'],2)
                 self.assertTrue(c.snapshot()['streaming']);self.assertEqual(len(calls),1)
+                self.assertEqual(c._latest_jpeg,frame)
                 c.lock();finish.set();c._thread.join(.1)
-                self.assertIsNone(c.snapshot()['preview']);self.assertEqual(list(c.directory.iterdir()),[])
+                self.assertIsNone(c.snapshot()['preview']);self.assertIsNone(c._latest_jpeg);self.assertEqual(list(c.directory.iterdir()),[])
             finally:finish.set();c.close()
         process.terminate.assert_called()
 

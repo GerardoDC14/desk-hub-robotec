@@ -131,6 +131,7 @@ class DashboardViews:
         if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'],kind=kind)
 
     def poll_tools(self):
+        self.poll_phone()
         if self.unlocked and getattr(self,'role','owner')=='guest' and not self.guest.active():self.lock_hub()
         self.check_inactivity()
         changed=self.alarm.poll()

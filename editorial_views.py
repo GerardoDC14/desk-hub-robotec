@@ -34,7 +34,8 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
-        if self.screen=='sharing':
+        if self.screen in ('sharing','phone'):
+            if self.screen=='sharing':self.soft_button('phoneopen',496,12,120,40,'Teléfono')
             self.soft_button('sharingback',632,12,136,40,'Volver')
             self.dirty=False;return
         if self.screen=='notion':
