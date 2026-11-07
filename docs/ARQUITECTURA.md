@@ -89,4 +89,5 @@ La pérdida del observador de eventos de Spotify invalida las órdenes del estad
 
 `video_export.py` reserva la cámara mientras convierte una sesión con FFmpeg. Envía JPEG por stdin a un proceso sin shell, utiliza un hilo de codificación, limita tiempo y tamaño y publica el MP4 sólo tras cerrar correctamente el proceso. La cancelación invalida la generación y descarta la salida temporal. Las fotos de origen se identifican por nombre seguro y firma de archivo.
 
-El servidor del teléfono limita a dos las respuestas multimedia concurrentes. Los ZIP se construyen con un máximo de seis originales y 24 MiB, sin aceptar rutas arbitrarias. Los vídeos requieren la misma sesión temporal del anfitrión que las fotografías; bloquear revoca ese acceso. Las acciones explícitas del panel web cuentan como actividad, pero recibir encuadres o consultar estado no prolonga la sesión.
+
+El reproductor mantiene una paleta fija al cambiar de canción. Sus controles, textos y progreso se actualizan por diferencias; una reproducción sin cambios no redibuja un indicador decorativo. Las zonas táctiles coinciden con las superficies visibles. La vista ambiental conserva el acento derivado de la portada.

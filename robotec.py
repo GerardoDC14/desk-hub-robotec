@@ -22,9 +22,6 @@ from dashboard_state import Alarm, AlertSound
 from dashboard_views import DashboardViews
 from timer_bank import TimerViews, NAMES
 from notion_board import NotionBoard, NotionViews
-from guest_access import GuestAccess, GuestViews
-from phone_views import PhoneViews
-from photobooth import Photobooth,BoothViews
 from video_export import VideoExporter
 from video_views import VideoViews
 from music_client import MusicClient
@@ -47,7 +44,7 @@ def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
     return ((r>>3)<<11)|((g>>2)<<5)|(b>>3)
 
-BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('171A1D','252A2E','FFFFFF','DCE3E8','7AE0BC','38434B')]
+BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('111A1E','1C2A31','F3F5F3','C5D2D6','9ADBC7','293B44')]
 BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('9FD4FF','FFD66F','FFB18D','D3D8C0')]
 TABS = [('home','Inicio'),('time','Tiempo'),('away','Fuera'),('music','Spotify')]
 COUNT_FONT=3
@@ -115,7 +112,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -159,14 +156,12 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
         super().__init__(port,directory)
         row=self.db.execute("SELECT value FROM state WHERE key='timers'").fetchone()
         self.init_timers(json.loads(row[0]) if row else None)
-        row=self.db.execute("SELECT value FROM state WHERE key='guest'").fetchone()
-        self.guest=GuestAccess(json.loads(row[0]) if row else None);self.role='locked';self.guest_code=''
+        self.db.execute("DELETE FROM state WHERE key='guest'")
+        self.db.commit()
         self.notion=NotionBoard(self.directory,self.stop)
-        self.init_phone()
         try: self.camera=CameraController(self.directory)
         except OSError: self.camera=None
         self.photos=PhotoLibrary(self.camera) if self.camera else None
-        self.booth=Photobooth(self.camera,self.photos) if self.camera else None
         try: self.videos=VideoExporter(self.directory,self.photos) if self.photos else None
         except (OSError,ValueError): self.videos=None
         row = self.db.execute("SELECT value FROM state WHERE key='stopwatch'").fetchone()
@@ -201,7 +196,6 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
     def save(self):
         super().save()
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('timers',?)",(json.dumps(self.timers.export()),))
-        if hasattr(self,'guest'): self.db.execute("INSERT OR REPLACE INTO state VALUES ('guest',?)",(json.dumps(self.guest.data),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('stopwatch',?)",(json.dumps(self.watch),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('alarm',?)",(json.dumps(self.alarm.data),))
         self.db.execute("INSERT OR REPLACE INTO state VALUES ('experience',?)",(json.dumps(dict(ambient_enabled=self.ambient_enabled,away_label=self.away_label,away_pending=self.away_pending,away_return=self.away_return)),))
@@ -247,13 +241,10 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
             if desired!=self.spotify_desired: self.spotify_wake.set()
 
     def lock_hub(self,away=False):
-        self.role='locked';self.guest_code=''
-        if getattr(self,'phone',None):self.phone.close()
         self._notion_selected=None
         self.ambient_since=None
         self.unlocked=False
         if getattr(self,'videos',None): self.videos.cancel()
-        if getattr(self,'booth',None): self.booth.cancel()
         if getattr(self,'photos',None): self.photos.lock()
         if getattr(self,'camera',None): self.camera.lock()
         self.reset_music_session()
@@ -269,10 +260,7 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
     def unlock_hub(self):
         if time.monotonic()<self.pin_wait or not self.pin_record: return
         owner=verify_pin(self.pin_entry,self.pin_record)
-        guest=not owner and getattr(self,'guest',None) and self.guest.verify(self.pin_entry)
-        if owner or guest:
-            self.role='owner' if owner else 'guest'
-            if guest:self.time_mode='timer'
+        if owner:
             if owner and (self.away_pending or self.away_timer.data['deadline'] is not None):
                 self.away_timer.reset()
                 self.away_pending=False; self.away_return=None
@@ -305,7 +293,7 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
         c=self.theme; fill=c['mint'] if selected else c['button']
         style=(x,y,w,h,selected,font,fill,c['ink'],c['bg'])
         if self.cache.get('button:'+key)!=style:
-            self.rounded(x,y,w,h,min(6,h//2-1),fill)
+            self.rounded(x,y,w,h,min(14,h//2-1),fill)
             self.cache['button:'+key]=style
             self.cache.pop(key,None)
         inset=min(14,max(3,h//4))
@@ -315,9 +303,14 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
         font=0 if h>=52 and self.text_width(value,0)<w-32 else 2
         self.soft_button(key,x,y,w,h,value,selected,font)
 
+    def owner(self):
+        return self.unlocked
+
+    def authorized_view(self,view):
+        return view not in ('sharing','phone','booth','activity')
+
     def navigate(self,view):
         if not self.authorized_view(view):view='home'
-        if self.screen=='sharing' and view!='sharing':self.guest_code=''
         self._photo_action=None; self._trash_item=None
         if not self.unlocked and view not in ('lock','away','help'): view='lock'
         if view=='ambient' and self.screen!='ambient' and self.ambient_since is None:
@@ -347,7 +340,6 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
         if now-self.last_touch < .15: return
         self.last_touch=now
         if self.check_inactivity(now=now): return
-        if self.guest_touch(x,y):return
         self.screen_activity(now)
         if self.notice:
             self.touch_notice(x,y); return
@@ -388,9 +380,6 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
         if self.screen=='notion': self.touch_notion(x,y); return
         if self.screen=='videos': self.touch_videos(x,y); return
         if self.screen=='camera' and 496<=x<616 and 12<=y<52:self.navigate('videos');return
-        if self.screen=='booth': self.touch_booth(x,y); return
-        if self.screen=='phone': self.touch_phone(x,y); return
-        if self.screen=='sharing': self.touch_sharing(x,y); return
         if self.screen=='time' and 496<=x<616 and 12<=y<52:
             self.navigate('timers'); return
         if self.screen=='power':
@@ -547,7 +536,7 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
         with self.lock:
             n=self.network.copy(); m=self.music.copy(); repos=self.repos.copy()
         now=dt.datetime.now()
-        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings','phone','sharing','booth','videos'):
+        if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings','videos'):
             self.draw_connection_badge()
         if self.screen=='display_settings': self.draw_display_settings(); return
         if self.screen=='help': self.draw_help(); return
@@ -583,9 +572,6 @@ class Robotec(VideoViews, BoothViews, PhoneViews, GuestViews, NotionViews, Timer
         elif self.screen=='timers': self.draw_timers()
         elif self.screen=='notion': self.draw_notion()
         elif self.screen=='videos': self.draw_videos()
-        elif self.screen=='booth': self.draw_booth()
-        elif self.screen=='phone': self.draw_phone()
-        elif self.screen=='sharing': self.draw_sharing()
         elif self.screen=='gallery': self.draw_gallery()
         elif self.screen=='gallery_grid': self.draw_gallery_grid()
         elif self.screen=='viewfinder': self.draw_viewfinder()
@@ -708,9 +694,7 @@ if __name__=='__main__':
             hub.stop.set()
             if hub.music_event_process and hub.music_event_process.poll() is None:
                 hub.music_event_process.terminate()
-            if getattr(hub,'phone',None): hub.phone.close()
             if getattr(hub,'videos',None): hub.videos.close()
-            if getattr(hub,'booth',None): hub.booth.cancel()
             if getattr(hub,'photos',None): hub.photos.close()
             hub.alert_sound.silence(); hub.alert_sound.thread.join(3); hub.db.close(); os.close(hub.fd)
             if getattr(hub,'camera',None): hub.camera.close()

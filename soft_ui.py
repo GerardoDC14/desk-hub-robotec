@@ -12,7 +12,7 @@ class SoftUI:
         fg=c['bg'] if selected else c['ink']
         if not enabled:
             selected=False; bg=c['bg']; fg=33808
-        style=(cx,cy,radius,icon,selected,enabled)
+        style=(cx,cy,radius,icon,selected,enabled,fg,bg,c['bg'])
         if self.cache.get('icon:'+key)==style: return
         if icon in ('play','pause','next','prev'):
             from visual_assets import player_commands
@@ -44,7 +44,7 @@ class SoftUI:
         self.digital(key+'value',294,159,212,86,str(max(0,int(seconds)//60)),1,c['ink'],c['bg'])
         self.text(key+'unit',294,247,212,28,2,('minutos / editar' if int(seconds)%60==0 else f'minutos {int(seconds)%60:02} s'),c['muted'],c['bg'],1)
         for i,(minutes,title) in enumerate(presets):
-            self.text_action(key+'preset'+str(i),194+i*140,283,132,40,title,seconds==minutes*60)
+            self.soft_button(key+'preset'+str(i),194+i*140,283,132,40,title,seconds==minutes*60)
 
     def digital(self,key,x,y,w,h,value,font,foreground,background):
         widths = [text_width(c,font)+2 for c in value]

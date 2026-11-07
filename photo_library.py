@@ -193,7 +193,7 @@ class PhotoLibrary:
         with self._cv:
             if not self._allowed_locked(unlocked):return False
             self._refresh_locked(force=True)
-            if not self._selected or self._saving or self.camera._busy or self.camera._job or self.camera._sequence or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False) or getattr(self.camera,'_video_working',False):return False
+            if not self._selected or self._saving or self.camera._busy or self.camera._job or self.camera._sequence or getattr(self.camera,'_video_working',False):return False
             try:
                 meta=self.catalog.meta(self._selected)
                 if operation=='favorite':self.catalog.edit(self._selected,favorite=not meta['favorite'])
@@ -306,7 +306,7 @@ class PhotoLibrary:
                 self._message = 'Elige un filtro para guardar una copia'; return False
             if self._saving: return False
             if (self.camera._busy or self.camera._job is not None or self.camera._sequence is not None
-                    or getattr(self.camera, '_editing', False) or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False) or getattr(self.camera,'_video_working',False)):
+                    or getattr(self.camera, '_editing', False) or getattr(self.camera,'_video_working',False)):
                 self._message = 'Espera a que termine la cámara'; return False
             files, size = self.camera._usage()
             if files >= limits.MAX_PHOTOS or size+limits.MAX_FILE_BYTES > limits.MAX_STORAGE_BYTES:
@@ -336,7 +336,7 @@ class PhotoLibrary:
         """Opera sólo sobre la revisión confirmada; nunca sobre otra selección."""
         with self._cv:
             if not self._allowed_locked(unlocked) or not self._root_valid(): return False
-            if self._saving or self.camera._busy or self.camera._job or self.camera._sequence or getattr(self.camera,'_booth_active',False) or getattr(self.camera,'_booth_working',False) or getattr(self.camera,'_video_working',False):
+            if self._saving or self.camera._busy or self.camera._job or self.camera._sequence or getattr(self.camera,'_video_working',False):
                 self._message='Espera a que termine la cámara'; return False
             try:
                 if action=='trash':

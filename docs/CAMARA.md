@@ -44,7 +44,7 @@ La cámara envía MJPEG de **640 × 360 a cuatro fotogramas por segundo** a un p
 
 Si `rpicam-vid` no está instalado, se usa `rpicam-still` por encuadres individuales, con una actualización más lenta. Las herramientas oficiales se describen en la [guía de software de cámara de Raspberry Pi](https://www.raspberrypi.com/documentation/accessories/camera-software.html#rpicam-vid).
 
-El álbum usa miniaturas de **64 × 36**, y el visor y la presentación alcanzan **128 × 72**. Estas resoluciones pertenecen a la vista en pantalla: los JPEG guardados siguen siendo de **1280 × 720**. El enlace temporal del [panel del teléfono](TELEFONO.md), creado por el anfitrión, permite ver un encuadre de mayor resolución y descargar los originales por la red local.
+El álbum usa miniaturas de **64 × 36**, y el visor y la presentación alcanzan **128 × 72**. Estas resoluciones pertenecen a la vista en pantalla: los JPEG guardados siguen siendo de **1280 × 720**. Copia los originales por SSH para verlos a resolución completa.
 
 Orienta la cámara al objeto o experimento que quieres registrar. En un laboratorio compartido, informa a las personas presentes antes de fotografiarlas y evita incluir documentos o pantallas ajenos al experimento.
 
@@ -58,7 +58,7 @@ El almacenamiento está limitado a **100 imágenes o 250 MiB**, contando fotos o
 
 ## Galería y efectos
 
-La galería requiere el PIN del anfitrión. Los códigos temporales de invitado no permiten acceder a fotografías ni cámara.
+La galería requiere desbloquear el panel con el PIN personal.
 
 ![Álbum de miniaturas](images/gallery-grid.png)
 
@@ -94,7 +94,7 @@ Nextion presenta una vista reducida que se dibuja progresivamente por UART. Pued
 
 ## Copiar las imágenes
 
-Las capturas se guardan en `~/.local/share/desk-hub/camera` con la configuración predeterminada. Si ejecutas el panel con `--state-dir OTRA_RUTA`, estarán en `OTRA_RUTA/camera`. Los permisos son 700 para la carpeta y 600 para las imágenes. Solo la cuenta Linux propietaria y administradores del sistema pueden acceder normalmente a ellas. No se publican en GitHub. El anfitrión puede habilitar su descarga mediante el enlace temporal del teléfono. El encuadre se procesa en memoria.
+Las capturas se guardan en `~/.local/share/desk-hub/camera` con la configuración predeterminada. Si ejecutas el panel con `--state-dir OTRA_RUTA`, estarán en `OTRA_RUTA/camera`. Los permisos son 700 para la carpeta y 600 para las imágenes. Solo la cuenta Linux propietaria y administradores del sistema pueden acceder normalmente a ellas. No se publican en GitHub. El encuadre se procesa en memoria.
 
 Desde PowerShell en el ordenador, sustituye `USUARIO` e `IP_DE_LA_PI` por los del equipo y ejecuta:
 
@@ -112,7 +112,7 @@ El timelapse usa el reloj y servicio de la Pi y requiere que permanezca encendid
 
 ## Favoritos, giros y grupos
 
-En **Galería → Álbumes**, elige Todas, Favoritas, una fecha o una sesión de Cabina o Timelapse. Anterior, Siguiente y Presentar recorren únicamente el grupo elegido. Las fotos anteriores a la creación del catálogo siguen disponibles en Todas y por fecha; no se asignan automáticamente a una sesión.
+En **Galería → Álbumes**, elige Todas, Favoritas, una fecha o una sesión de fotos o Timelapse. Anterior, Siguiente y Presentar recorren únicamente el grupo elegido. Las fotos anteriores a la creación del catálogo siguen disponibles en Todas y por fecha; no se asignan automáticamente a una sesión.
 
 Abre una foto y pulsa **Opciones** para marcarla como favorita, girarla 90° o quitar el giro. Estas preferencias se conservan al reiniciar y no reescriben el JPEG. **Guardar copia** crea un archivo con el giro y efecto visibles. Descargar el original entrega los bytes originales; para obtener el giro aplicado, descarga la copia guardada.
 
@@ -134,7 +134,7 @@ sudo apt install ffmpeg
 2. Detén la vista de cámara y abre **Estado → Cámara → Vídeos**.
 3. Elige **6, 12 o 24 fotos por segundo** y pulsa Exportar junto a la sesión. Una secuencia de 60 fotos a 12 fotos/s produce un vídeo de 5 segundos; este valor es independiente del intervalo entre capturas.
 4. Espera el mensaje **Vídeo listo**. El contador muestra los fotogramas enviados al codificador; al llegar al total puede faltar cerrar el MP4.
-5. Enlaza el [teléfono](TELEFONO.md), abre **Fotos** y busca **Timelapses en vídeo** para descargar el MP4.
+5. Copia los MP4 al ordenador por SSH: `scp -r USUARIO@IP_DE_LA_PI:.local/share/desk-hub/videos ./videos-hub`. Sustituye usuario y dirección por los de tu Raspberry.
 
 ![Exportación de timelapses](images/videos.png)
 

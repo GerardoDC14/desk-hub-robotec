@@ -8,21 +8,22 @@ La Pi mantiene el estado, consulta internet y reproduce audio por su jack. Nexti
 
 Vista reconstruida desde los comandos de dibujo, con datos de demostración y tipografía aproximada. La tipografía física es la incorporada en el HMI.
 
+Consulta [Diseño y respuesta del panel](docs/DISENO.md) para el archivo editable en Figma y las reglas de composición y actualización.
+
 ## Funciones
 
 - **Inicio:** reloj, fecha, temperatura y datos actuales; un toque alterna un pronóstico de tres horas. Las cuentas en curso se pueden abrir desde su tarjeta.
 - **Tiempo:** Temporizador, Cronómetro con reloj analógico y vueltas, Alarma local de una ejecución y sesiones de enfoque con descansos y rondas configurables.
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
-- **Spotify:** portada progresiva de 96 × 96, iconos suavizados, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, colores de portada, desplazamiento de títulos largos y estados de conexión.
+- **Spotify:** portada progresiva de 96 × 96, iconos suavizados, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, fondo estable, desplazamiento de títulos largos y estados de conexión.
 - **Música guardada:** hasta 24 canciones o episodios elegidos desde el panel, con reproducción, eliminación y deshacer. La selección se guarda localmente y no modifica las listas de Spotify.
-- **Cámara opcional:** encuadre continuo local, disparo con cuenta de tres segundos, timelapse, álbum por fechas y sesiones, favoritos, giros, presentación y siete opciones de imagen. Incluye cabina de cuatro fotos y exportación de timelapses a MP4 con FFmpeg. Guarda copias con efectos sin modificar las fotos originales; los archivos permanecen privados en la Pi.
+- **Cámara opcional:** encuadre continuo local, disparo con cuenta de tres segundos, timelapse, álbum por fechas y sesiones, favoritos, giros, presentación y siete opciones de imagen. Permite exportar timelapses a MP4 con FFmpeg. Guarda copias con efectos sin modificar las fotos originales; los archivos permanecen privados en la Pi.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
 - **Pantalla y bloqueo:** vista ambiental tras un tiempo de inactividad configurable, seguida de bloqueo con PIN después de otro intervalo. La vista ambiental muestra hora, música y la cuenta de tiempo activa.
 - **Estado:** conexión local, salida de audio, Spotify, pantalla y reconexión manual del receptor.
 - **Uso compartido:** guía accesible sin desbloquear, bloqueo por inactividad y confirmación antes de interrumpir música mediante reconexión.
 - **Persistencia:** SQLite conserva cuentas, sesiones de enfoque, preferencias y música guardada entre reinicios.
 
-- **Teléfono:** enlace QR temporal para música, cuentas, encuadre de cámara y descargas de originales, selección ZIP o vídeos. Consulta [Panel del teléfono](docs/TELEFONO.md).
 
 ## Requisitos
 
@@ -53,7 +54,6 @@ Continúa con [Instalación y servicios](docs/INSTALACION.md), [Firmware Nextion
 
 ## Uso
 
-Para compartir música y temporizadores sin entregar el PIN del anfitrión, abre **Estado → Invitados** y crea un código de una u ocho horas. El invitado no puede acceder a fotos, cámara, Notion ni configuración privada. Consulta [uso del modo invitado](docs/INVITADOS.md).
 
 La interfaz usa fondo grafito, texto blanco de alto contraste y navegación grande. El brillo normal es del 100 %; el brillo de la vista ambiental se ajusta entre 20 y 100 %, con 60 % de forma predeterminada. Los reflejos del cristal y el ángulo de visión pueden seguir afectando la lectura; orienta la pantalla para evitar luces reflejadas directamente.
 
@@ -122,11 +122,3 @@ python3 -m unittest discover -s tests -v
 Los tests cubren temporización, restauración, tramas UART, PIN, bloqueo, alarmas, sesiones de enfoque, biblioteca local, transferencias de reproducción, vueltas, conservación de píxeles y estabilización de la tipografía. Los de cámara simulan procesos, archivos y cancelaciones; la captura real requiere una cámara conectada y la comprobación descrita en su guía. El transporte negocia hasta 921600 baudios y vuelve a 115200 si falla el enlace; conserva las confirmaciones de dibujo y los eventos táctiles. Las rutas y servicios configurables requieren prueba de instalación en el equipo destino; los tests no verifican apagado físico ni ventilación.
 
 El clima procede de [Open-Meteo](https://open-meteo.com/) y los proyectos de la API pública de GitHub. [Spotify Soloist](https://developer.spotify.com/documentation/soloist/reference/downloads-and-updates) se descarga por separado y conserva sus propios términos; no se incluyen ejecutables ni credenciales.
-
-## Panel del teléfono
-
-Abre **Estado → Invitados → Teléfono** con el PIN del anfitrión y genera un QR temporal. Desde la misma red puedes controlar música y cuentas, descargar fotos originales y ver la cámara por Wi-Fi. Consulta [uso, conexión y límites de privacidad](docs/TELEFONO.md).
-
-## Cabina de fotos
-
-En **Estado → Cámara → Cabina**, elige formato, filtro y marco e inicia una sesión de cuatro fotos con cuenta regresiva. Se guarda una tira o cuadrícula y se conservan los cuatro originales. Consulta la [guía de la cabina](docs/CABINA.md).

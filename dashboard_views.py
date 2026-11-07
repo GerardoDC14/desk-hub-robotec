@@ -66,10 +66,7 @@ class DashboardViews:
     def render_time(self):
         c=self.theme
         for i,(mode,title) in enumerate([('timer','Temporizador'),('watch','Cronómetro'),('alarm','Alarma')]):
-            if mode=='alarm' and getattr(self,'role','owner')=='guest':continue
-            self.text_action('mode'+mode,24+i*254,80,244,44,title,self.time_mode==mode,0)
-            if self.cache.get('timemode')!=self.time_mode:
-                self.fill(74+i*254,126,144,2,c['mint'] if self.time_mode==mode else c['bg'])
+            self.soft_button('mode'+mode,24+i*254,80,244,44,title,self.time_mode==mode,0)
         self.cache['timemode']=self.time_mode
         if self.time_mode=='alarm':
             field=getattr(self,'alarm_field','minute')
@@ -131,9 +128,6 @@ class DashboardViews:
         if kind!='missed': self.alert_sound.play(seconds=180 if kind=='alarm' else 30,volume=self.alarm.data['volume'],kind=kind)
 
     def poll_tools(self):
-        self.poll_phone()
-        if getattr(self,'booth',None):self.booth.poll(self.owner())
-        if self.unlocked and getattr(self,'role','owner')=='guest' and not self.guest.active():self.lock_hub()
         self.check_inactivity()
         changed=self.alarm.poll()
         if changed:

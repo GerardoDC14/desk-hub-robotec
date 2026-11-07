@@ -34,9 +34,8 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
-        if self.screen in ('sharing','phone','booth','videos'):
-            if self.screen=='sharing':self.soft_button('phoneopen',496,12,120,40,'Teléfono')
-            self.soft_button('sharingback',632,12,136,40,'Volver')
+        if self.screen=='videos':
+            self.soft_button('videoback',632,12,136,40,'Volver')
             self.dirty=False;return
         if self.screen=='notion':
             self.soft_button('notionrefresh',496,12,120,40,'Actualizar')
@@ -51,7 +50,6 @@ class EditorialViews:
             self.soft_button('galleryback',632,12,136,40,{'gallery':'Álbum','gallery_grid':'Cámara','viewfinder':'Volver','photo_show':'Álbum'}[self.screen])
             if self.screen=='gallery_grid': self.soft_button('showstart',496,12,120,40,'Presentar')
             if self.screen=='gallery':self.soft_button('photooptions',496,12,120,40,'Opciones')
-            if self.screen=='viewfinder':self.soft_button('boothopen',496,12,120,40,'Cabina')
             self.dirty=False; return
         if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
@@ -61,8 +59,8 @@ class EditorialViews:
                 self.soft_button('videoopen',496,12,120,40,'Vídeos')
                 self.soft_button('cameraback',632,12,136,40,'Volver')
             elif self.screen=='home':
-                self.soft_button('lockmanual',504,12,120,40,'Salir' if getattr(self,'role','owner')=='guest' else 'Bloquear')
-                if getattr(self,'role','owner')!='guest':self.soft_button('power',648,12,120,40,'Apagar')
+                self.soft_button('lockmanual',504,12,120,40,'Bloquear')
+                self.soft_button('power',648,12,120,40,'Apagar')
             elif self.screen in ('music','music_options'):
                 self.soft_button('musicoptions',632,12,136,40,'Volver' if self.screen=='music_options' else 'Opciones')
                 if self.screen=='music': self.soft_button('libraryopen',496,12,120,40,'Guardadas')
@@ -74,12 +72,11 @@ class EditorialViews:
             elif self.screen=='timers': self.soft_button('timersback',632,12,136,40,'Volver')
             else: self.text('local',550,14,218,32,2,LOCATION,c['muted'],c['bg'],2)
             if self.screen=='status': self.soft_button('cameraopen',496,12,120,40,'Cámara')
-            self.fill(32,426,736,1,c['button'])
             for i,(view,title) in enumerate(TABS):
-                if view=='away' and getattr(self,'role','owner')=='guest':title='Salir'
                 selected=view==self.screen or (view=='music' and self.screen in ('music_options','library')) or (view=='time' and self.screen=='focus')
-                self.text('nav'+view,i*200+24,431,152,40,0,title,c['mint'] if selected else c['ink'],c['bg'],1)
-                if selected: self.fill(i*200+78,473,44,3,c['mint'])
+                if selected:
+                    self.panel('navpill'+view,i*200+16,430,168,46,c['card'],18)
+                self.text('nav'+view,i*200+30,433,140,40,0,title,c['mint'] if selected else c['muted'],c['card'] if selected else c['bg'],1)
         if self.screen=='home':
             self.fill(428,82,1,308,c['button'])
             self.fill(32,268,364,1,c['button'])
@@ -181,7 +178,7 @@ class EditorialViews:
         c=self.theme; away=self.away_timer.data['mode']=='away'
         seconds=self.away_timer.remaining() if away else 1800
         self.text('awaytitle',32,78,736,45,0,'¿En cuánto tiempo vuelves?',c['ink'],c['bg'],1)
-        self.text_action('awayreason',32,124,736,32,AWAY_LABELS[getattr(self,'away_label',0)]+' / cambiar',True)
+        self.soft_button('awayreason',224,124,352,32,AWAY_LABELS[getattr(self,'away_label',0)]+' / cambiar')
         self.duration_picker('away',seconds,[(15,'15 min'),(30,'30 min'),(60,'1 hora')])
         self.soft_button('awaystart',240,342,320,56,'Estoy fuera',True,0)
         self.text('return',32,400,736,23,2,'Aviso de regreso · panel bloqueado · Spotify detenido',c['muted'],c['bg'],1)
@@ -204,8 +201,7 @@ class EditorialViews:
         if self.cache.get('musicassiststate')!=assist:
             self.fill(32,374,256,44,c['bg']); self.cache.pop('activity:music',None)
             self.cache.pop('button:musichelp',None); self.cache.pop('musichelp',None); self.cache['musicassiststate']=assist
-        if ready: self.activity('music',113,387,music['status']=='playing',c['mint'],c['bg'])
-        else:
+        if not ready:
             title='Conectando...' if assist[2] else 'Escuchar aquí' if assist[1] else '¿Cómo conectar?'
             font=0 if self.text_width(title,0)<=228 else 2
             self.soft_button('musichelp',32,374,256,44,title,True,font)
@@ -221,6 +217,6 @@ class EditorialViews:
             self.text('optionlabel'+str(i),48,y,360,52,0,label,c['ink'],c['bg'])
             self.soft_button('optionvalue'+str(i),488,y,264,52,value,False,0)
         self.text('displayshortcut',48,287,704,26,2,'Vista ambiental y PIN según la inactividad',c['mint'],c['bg'])
-        if getattr(self,'role','owner')!='guest':self.soft_button('displaysettings',48,314,704,42,'Pantalla y bloqueo',False,0)
+        self.soft_button('displaysettings',48,314,704,42,'Pantalla y bloqueo',False,0)
         self.text('nextlabel',48,365,704,24,2,'A CONTINUACIÓN',c['mint'],c['bg'])
         self.text('nexttrack',48,391,704,30,2,self.fit(music.get('next_title') or 'La cola se controla desde Spotify',704),c['ink'],c['bg'])

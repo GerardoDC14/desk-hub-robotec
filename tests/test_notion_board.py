@@ -37,7 +37,7 @@ class NotionTests(unittest.TestCase):
         self.assertEqual(json.loads(calls[1].data)['start_cursor'],'cursor2')
         self.assertEqual(len(json.loads(calls[0].data)['filter']['and']),2)
 
-    def test_failure_keeps_last_success_and_lock_guest_do_not_show_data(self):
+    def test_failure_keeps_last_success_and_lock_does_not_show_data(self):
         config=self.root/'config.json';write_private(config,{'token':'test-only'})
         board=NotionBoard(self.root,threading.Event(),config=config,fetcher=lambda _:normalize([{'title':'Privada'}]),start=False)
         board.update(); first=board.snapshot(True)
@@ -50,8 +50,7 @@ class NotionTests(unittest.TestCase):
         restored=NotionBoard(self.root,threading.Event(),start=False)
         self.assertEqual(restored.snapshot(True)['tasks'],first['tasks'])
         h=hub();h.notion=board;h.screen='notion';h._notion_selected=first['tasks'][0]
-        from guest_access import GuestAccess
-        h.guest=GuestAccess();h.guest.create();h.role='guest';commands=[];h.send=commands.append;h.render()
+        h.unlocked=False;commands=[];h.send=commands.append;h.draw_notion()
         self.assertFalse(any('Privada' in c for c in commands))
 
     def test_ui_list_detail_back_and_lock_gate(self):

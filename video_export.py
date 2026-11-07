@@ -60,7 +60,7 @@ class VideoExporter:
             c=self.photos.camera
             if self.busy or self.closed:return False
             if not self.executable:self.message='Instala ffmpeg para exportar vídeos.';return False
-            if c._busy or c._job or c._sequence or c._editing or getattr(c,'_booth_active',False) or getattr(c,'_booth_working',False) or getattr(c,'_video_working',False):self.message='Detén la cámara antes de exportar.';return False
+            if c._busy or c._job or c._sequence or c._editing or getattr(c,'_video_working',False):self.message='Detén la cámara antes de exportar.';return False
             session=next((s for s in self.photos.catalog.sessions() if s['id']==session_id and s['kind']=='timelapse'),None)
             if not session or not 2<=len(session['names'])<=60:self.message='Se necesitan entre 2 y 60 fotos de una sesión.';return False
             try:
@@ -111,7 +111,7 @@ class VideoExporter:
                 new=[entry]+self.index[:99]
                 try:write_private(self.directory/'index.json',new)
                 except (OSError,ValueError):destination.unlink();raise
-                self.index=new;self.result=name;self.message='Vídeo listo. Descárgalo desde el teléfono.'
+                self.index=new;self.result=name;self.message='Vídeo listo. Guardado en la Raspberry.'
         except Exception:
             with self.lock:
                 if self._valid(generation):self.message='No se pudo exportar el vídeo. Tus fotos se conservan.'
