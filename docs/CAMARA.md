@@ -1,6 +1,6 @@
 # Cámara: fotos, timelapse y galería
 
-La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Estado → Cámara**. Incluye encuadre continuo local, álbum de miniaturas, presentación y copias con efectos. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
+La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Cámara**. Incluye encuadre continuo local, álbum de miniaturas, presentación y copias con efectos. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
 
 ## Conectar una cámara a la Pi 3 B
 
@@ -32,7 +32,7 @@ El último comando enumera sensores; no guarda una foto. Un módulo OV5647 debe 
 
 Vista reconstruida con una imagen sintética y tipografía aproximada.
 
-1. Desbloquea el Hub y abre **Estado → Cámara**.
+1. Desbloquea el Hub y abre **Cámara**.
 2. Pulsa **Activar cámara**. La cámara permanece abierta y actualiza el encuadre sin guardar fotografías. Las zonas quietas se conservan; al mover la cámara, espera a que termine de dibujarse la nueva imagen.
 3. **Sin cuenta** cambia a **Cuenta: 3 s** si quieres un pequeño retardo antes de disparar. Pulsa otra vez para quitarlo.
 4. Pulsa **Tomar foto**. La vista se pausa, se completa la cuenta elegida y se guarda un JPEG de **1280 × 720 píxeles**. El Hub abre la foto en el visor para revisarla o aplicarle un efecto.
@@ -50,7 +50,7 @@ Orienta la cámara al objeto o experimento que quieres registrar. En un laborato
 
 ## Timelapse
 
-En **Estado → Cámara → Timelapse**, elige un intervalo de **10, 30 o 60 segundos** y una secuencia de **12, 30 o 60 fotos**. Pulsa **Iniciar timelapse**: la primera captura se solicita inmediatamente y las siguientes según el intervalo, sin solapar capturas. El Hub guarda imágenes JPEG individuales. Después puedes convertir una sesión en MP4 desde **Cámara → Vídeos**. Puedes salir a otra vista mientras se completa.
+En **Cámara → Timelapse**, elige un intervalo de **10, 30 o 60 segundos** y una secuencia de **12, 30 o 60 fotos**. Pulsa **Iniciar timelapse**: la primera captura se solicita inmediatamente y las siguientes según el intervalo, sin solapar capturas. El Hub guarda imágenes JPEG individuales. Después puedes convertir una sesión en MP4 desde **Cámara → Vídeos**. Puedes salir a otra vista mientras se completa.
 
 **Detener timelapse** termina la secuencia. Bloquear el panel también cancela capturas pendientes y en curso; no se reanudan automáticamente al desbloquear o reiniciar. Iniciar Fuera bloquea el panel y detiene la secuencia. Para un timelapse largo, ajusta previamente los tiempos en **Estado → Pantalla y bloqueo** y vuelve a bloquear el Hub cuando termines. Entrar en Cámara o arrancar el servicio no toma fotos.
 
@@ -68,7 +68,7 @@ La galería requiere desbloquear el panel con el PIN personal.
 
 Vistas reconstruidas con una imagen sintética de demostración y tipografía aproximada; no muestran fotografías tomadas en el laboratorio.
 
-Abre **Estado → Cámara → Galería** con el panel desbloqueado. El álbum muestra **seis miniaturas por página**, ordenadas de más reciente a más antigua, con fecha y hora. **Anterior** y **Siguiente** cambian de página. Toca una miniatura para abrir la foto y sus efectos. Dentro del visor, Anterior y Siguiente recorren las fotos; **Álbum** regresa a las miniaturas. Si todavía no hay fotos, vuelve a Cámara y toma una. Consultar la galería no inicia la cámara ni captura imágenes.
+Abre **Cámara → Galería** con el panel desbloqueado. El álbum muestra **seis miniaturas por página**, ordenadas de más reciente a más antigua, con fecha y hora. **Anterior** y **Siguiente** cambian de página. Toca una miniatura para abrir la foto y sus efectos. Dentro del visor, Anterior y Siguiente recorren las fotos; **Álbum** regresa a las miniaturas. Si todavía no hay fotos, vuelve a Cámara y toma una. Consultar la galería no inicia la cámara ni captura imágenes.
 
 **Presentar** abre un marco de fotos privado. Cada foto permanece ocho segundos después de terminar de dibujarse, y al llegar a la última se vuelve a la primera. Puedes pausar, continuar o cambiar de foto manualmente. **Álbum** termina la presentación. La presentación respeta los tiempos de vista ambiental y bloqueo: no prolonga por sí sola la sesión desbloqueada.
 
@@ -131,7 +131,7 @@ sudo apt install ffmpeg
 ```
 
 1. Crea un timelapse y espera a que guarde al menos dos fotos. Puedes detenerlo antes de completar la cantidad elegida.
-2. Detén la vista de cámara y abre **Estado → Cámara → Vídeos**.
+2. Detén la vista de cámara y abre **Cámara → Vídeos**.
 3. Elige **6, 12 o 24 fotos por segundo** y pulsa Exportar junto a la sesión. Una secuencia de 60 fotos a 12 fotos/s produce un vídeo de 5 segundos; este valor es independiente del intervalo entre capturas.
 4. Espera el mensaje **Vídeo listo**. El contador muestra los fotogramas enviados al codificador; al llegar al total puede faltar cerrar el MP4.
 5. Copia los MP4 al ordenador por SSH: `scp -r USUARIO@IP_DE_LA_PI:.local/share/desk-hub/videos ./videos-hub`. Sustituye usuario y dirección por los de tu Raspberry.

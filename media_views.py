@@ -135,7 +135,7 @@ class MediaViews:
         screen=self.screen
         if screen=='gallery_grid' and getattr(self,'_photo_action',None): return self.touch_photo_dialog(x,y)
         if 632<=x<768 and 12<=y<52:
-            self.navigate('status' if screen=='viewfinder' else 'viewfinder' if screen=='gallery_grid' else 'gallery_grid'); return True
+            self.navigate('home' if screen=='viewfinder' else 'viewfinder' if screen=='gallery_grid' else 'gallery_grid'); return True
         if screen=='gallery_grid':
             if 344<=x<568 and 58<=y<96:self._group_page=0;self.photo_dialog('collections');return True
             if 600<=x<768 and 58<=y<96:

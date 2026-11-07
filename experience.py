@@ -6,6 +6,7 @@ import socket
 import subprocess
 import time
 from music_state import connection_label, control_ready, position_ms
+from navigation import tab_target
 
 AWAY_LABELS=('Estoy fuera','En reunion','En el laboratorio')
 
@@ -172,7 +173,10 @@ class Experience:
             elif 350<=y<406 and 432<=x<768:
                 self.ambient_return='home'; self.navigate('ambient')
             elif y>=424:
-                self.navigate(['home','time','away','music'][min(3,x//200)])
+                target=tab_target(x)
+                if target:
+                    if target=='notion':self._notion_selected=None
+                    self.navigate(target)
             return True
         if not self.compact and 224<=x<480 and 12<=y<52 and self.screen not in ('lock','power','notion','videos'):
             self.navigate('status'); return True

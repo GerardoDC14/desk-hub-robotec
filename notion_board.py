@@ -153,7 +153,7 @@ class NotionViews:
 
     def touch_notion(self,x,y):
         if not self.unlocked or getattr(self,'role','owner')!='owner':return
-        if 632<=x<768 and 12<=y<52:self._notion_selected=None;self.navigate('status');return
+        if 632<=x<768 and 12<=y<52:self._notion_selected=None;self.navigate('home');return
         if 496<=x<616 and 12<=y<52:
             if self.notion:self.notion.refresh()
             return

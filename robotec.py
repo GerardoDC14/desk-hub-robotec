@@ -46,7 +46,7 @@ def rgb(hexcolor):
 
 BG,CARD,INK,MUTED,MINT,BUTTON=[rgb(v) for v in ('111A1E','1C2A31','F3F5F3','C5D2D6','9ADBC7','293B44')]
 BLUE,GOLD,CORAL,LILAC=[rgb(v) for v in ('9FD4FF','FFD66F','FFB18D','D3D8C0')]
-TABS = [('home','Inicio'),('time','Tiempo'),('away','Fuera'),('music','Spotify')]
+from navigation import TABS,tab_target
 COUNT_FONT=3
 
 def weather_pixels(kind):
@@ -418,8 +418,10 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
                 self.save(); self.compact=False; self.navigate(self.screen)
             return
         if y >= 424:
-            i=x//200
-            if 0 <= i < 4: self.navigate(TABS[i][0])
+            target=tab_target(x)
+            if target:
+                if target=='notion':self._notion_selected=None
+                self.navigate(target)
             return
         if self.screen=='home':
             if 32<=x<396 and 374<=y<424: self.navigate('music')
@@ -451,13 +453,13 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
                 options=m.get('options',{})
                 if 488<=x<752 and 159<=y<211: command=['shuffle','off' if options.get('shuffle') else 'on']
                 elif 488<=x<752 and 231<=y<283: command=['repeat',{'off':'context','context':'track','track':'off'}.get(options.get('repeat','off'),'off')]
-            elif 255<=y<279 and 320<=x<768:
-                if m.get('duration',0): command=['seek',str(round((x-320)/448*m['duration']))]
-            elif 285<=y<353:
-                for cx,action in [(434,'prev'),(544,'pause' if m['status']=='playing' else 'play'),(654,'next')]:
-                    if (x-cx)**2+(y-319)**2<=(34 if cx==544 else 28)**2: command=[action]
-            elif 365<=y<409 and 410<=x<668:
-                value=max(0,min(100,round((x-410)/258*100)))
+            elif 308<=y<344 and 32<=x<464:
+                if m.get('duration',0): command=['seek',str(round((x-32)/432*m['duration']))]
+            elif 356<=y<420 and x<272:
+                for cx,action in [(80,'prev'),(152,'pause' if m['status']=='playing' else 'play'),(224,'next')]:
+                    if (x-cx)**2+(y-388)**2<=(30 if cx==152 else 26)**2: command=[action]
+            elif 366<=y<414 and 410<=x<644:
+                value=max(0,min(100,round((x-410)/234*100)))
                 command=['volume',str(value)]
             if command: self.queue_music(command)
         elif self.screen=='github' and 346 <= y < 394:

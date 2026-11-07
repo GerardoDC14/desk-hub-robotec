@@ -7,7 +7,7 @@ from settings import GITHUB_USER, LOCATION
 from music_state import position_ms, control_ready
 from experience import AWAY_LABELS
 
-TABS = [('home','Inicio'),('time','Tiempo'),('away','Fuera'),('music','Spotify')]
+from navigation import TABS,tab_bounds
 PIN_X, PIN_Y, PIN_DX, PIN_DY = 416,116,112,70
 
 
@@ -39,7 +39,7 @@ class EditorialViews:
             self.dirty=False;return
         if self.screen=='notion':
             self.soft_button('notionrefresh',496,12,120,40,'Actualizar')
-            self.soft_button('notionback',632,12,136,40,'Volver')
+            self.soft_button('notionback',632,12,136,40,'Inicio')
             self.dirty=False; return
         if self.screen in ('gallery','gallery_grid','viewfinder','photo_show'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
@@ -47,7 +47,7 @@ class EditorialViews:
             if getattr(self,'_photo_action',None):
                 self.soft_button('galleryback',632,12,136,40,'Volver')
                 self.dirty=False; return
-            self.soft_button('galleryback',632,12,136,40,{'gallery':'Álbum','gallery_grid':'Cámara','viewfinder':'Volver','photo_show':'Álbum'}[self.screen])
+            self.soft_button('galleryback',632,12,136,40,{'gallery':'Álbum','gallery_grid':'Cámara','viewfinder':'Inicio','photo_show':'Álbum'}[self.screen])
             if self.screen=='gallery_grid': self.soft_button('showstart',496,12,120,40,'Presentar')
             if self.screen=='gallery':self.soft_button('photooptions',496,12,120,40,'Opciones')
             self.dirty=False; return
@@ -74,9 +74,10 @@ class EditorialViews:
             if self.screen=='status': self.soft_button('cameraopen',496,12,120,40,'Cámara')
             for i,(view,title) in enumerate(TABS):
                 selected=view==self.screen or (view=='music' and self.screen in ('music_options','library')) or (view=='time' and self.screen=='focus')
+                left,right=tab_bounds(i)
                 if selected:
-                    self.panel('navpill'+view,i*200+16,430,168,46,c['card'],18)
-                self.text('nav'+view,i*200+30,433,140,40,0,title,c['mint'] if selected else c['muted'],c['card'] if selected else c['bg'],1)
+                    self.panel('navpill'+view,left+6,430,right-left-12,46,c['card'],18)
+                self.text('nav'+view,left+14,433,right-left-28,40,0,title,c['mint'] if selected else c['muted'],c['card'] if selected else c['bg'],1)
         if self.screen=='home':
             self.fill(428,82,1,308,c['button'])
             self.fill(32,268,364,1,c['button'])
@@ -184,30 +185,36 @@ class EditorialViews:
         self.text('return',32,400,736,23,2,'Aviso de regreso · panel bloqueado · Spotify detenido',c['muted'],c['bg'],1)
 
     def draw_music(self,music):
-        c=self.theme; self.art('music',40,80,240)
-        title=self.scrolling_title('music',music['title'],448,0)
-        self.text('musictitle',320,80,448,72,0,title,c['ink'],c['bg'])
-        self.text('musicartist',320,166,448,38,0,self.fit(music['artist'],448,0),c['muted'],c['bg'])
-        self.text('musiccontext',320,209,448,24,2,self.fit(music.get('context') or 'Spotify Connect',448),c['mint'],c['bg'])
+        c=self.theme; self.art('music',496,72,272)
+        self.text('playing',32,72,432,26,2,self.fit(self.music_label(music),432),c['mint'],c['bg'])
+        title=music['title']; big=self.text_width(title,1)<=432
+        if self.cache.get('titlelayout')!=big:
+            self.fill(32,104,432,100,c['bg'])
+            for key in ('musictitlebig','musictitle0','musictitle1'):self.cache.pop(key,None)
+            self.cache['titlelayout']=big
+        if big:self.text('musictitlebig',32,104,432,100,1,title,c['ink'],c['bg'])
+        else:self.paragraph('musictitle',32,112,432,title,2,0)
+        self.text('musicartist',32,210,432,40,0,self.fit(music['artist'],432,0),c['muted'],c['bg'])
+        self.text('musiccontext',32,255,432,24,2,self.fit(music.get('context') or 'Spotify Connect',432),c['muted'],c['bg'])
         ms=position_ms(music); duration=music.get('duration',0)
-        self.text('elapsed',320,238,140,24,2,f'{int(ms)//60000}:{int(ms)//1000%60:02}',c['muted'],c['bg'])
-        self.text('tracklength',628,238,140,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
-        self.progress('trackprogress',320,267,448,ms/max(1,duration),c['mint'])
-        for key,x,icon,selected in [('prev',434,'prev',False),('toggle',544,'pause' if music['status']=='playing' else 'play',True),('next',654,'next',False)]:
-            self.icon_button(key,x,319,34 if selected else 26,icon,selected and control_ready(music),control_ready(music))
-        self.text('playing',32,331,256,42,2,self.fit(self.music_label(music),256),c['mint'],c['bg'],1)
         ready=control_ready(music)
-        assist=(ready,music.get('logged_in',False),bool(getattr(self,'music_pending',None)))
-        if self.cache.get('musicassiststate')!=assist:
-            self.fill(32,374,256,44,c['bg']); self.cache.pop('activity:music',None)
-            self.cache.pop('button:musichelp',None); self.cache.pop('musichelp',None); self.cache['musicassiststate']=assist
-        if not ready:
-            title='Conectando...' if assist[2] else 'Escuchar aquí' if assist[1] else '¿Cómo conectar?'
-            font=0 if self.text_width(title,0)<=228 else 2
-            self.soft_button('musichelp',32,374,256,44,title,True,font)
-        self.text('volumelabel',320,373,84,30,2,'Volumen',c['muted'],c['bg'])
-        self.progress('volumeprogress',410,384,258,music['volume']/100,c['muted'])
-        self.text('volume',680,369,88,38,0,str(music['volume'])+'%',c['ink'],c['bg'],2)
+        if self.cache.get('musicassiststate')!=ready:
+            self.fill(32,288,432,56,c['bg'])
+            for key in ('elapsed','tracklength','delta:trackprogress','button:musichelp','musichelp'):self.cache.pop(key,None)
+            self.cache['musicassiststate']=ready
+        if ready:
+            self.text('elapsed',32,290,140,24,2,f'{int(ms)//60000}:{int(ms)//1000%60:02}',c['muted'],c['bg'])
+            self.text('tracklength',324,290,140,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
+            self.progress('trackprogress',32,323,432,ms/max(1,duration),c['mint'])
+        else:
+            title='Conectando...' if getattr(self,'music_pending',None) else 'Escuchar aquí' if music.get('logged_in',False) else '¿Cómo conectar?'
+            self.soft_button('musichelp',32,288,432,48,title,True,0)
+        self.panel('musicdock',32,356,736,64,c['card'],22)
+        for key,x,icon,selected in [('prev',80,'prev',False),('toggle',152,'pause' if music['status']=='playing' else 'play',True),('next',224,'next',False)]:
+            self.icon_button(key,x,388,30 if selected else 24,icon,selected and ready,ready,surface=c['card'])
+        self.text('volumelabel',296,367,100,40,2,'Volumen',c['muted'],c['card'])
+        self.progress('volumeprogress',410,384,234,music['volume']/100,c['mint'])
+        self.text('volume',664,367,88,40,0,str(music['volume'])+'%',c['ink'],c['card'],2)
 
     def draw_music_options(self,music):
         c=self.theme; options=music.get('options',{}); repeat=options.get('repeat','off')

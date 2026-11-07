@@ -7,16 +7,18 @@ from font_metrics import text_width
 class SoftUI:
     text_width = staticmethod(text_width)
 
-    def icon_button(self,key,cx,cy,radius,icon,selected=False,enabled=True):
+    def icon_button(self,key,cx,cy,radius,icon,selected=False,enabled=True,surface=None):
         c=self.theme; bg=c['mint'] if selected else c['card']
+        underlay=c['bg'] if surface is None else surface
+        if surface is not None and not selected:bg=c['button']
         fg=c['bg'] if selected else c['ink']
         if not enabled:
-            selected=False; bg=c['bg']; fg=33808
-        style=(cx,cy,radius,icon,selected,enabled,fg,bg,c['bg'])
+            selected=False; bg=underlay; fg=33808
+        style=(cx,cy,radius,icon,selected,enabled,fg,bg,underlay)
         if self.cache.get('icon:'+key)==style: return
         if icon in ('play','pause','next','prev'):
             from visual_assets import player_commands
-            for command in player_commands(cx,cy,radius,icon,fg,bg,c['bg']): self.send(command)
+            for command in player_commands(cx,cy,radius,icon,fg,bg,underlay): self.send(command)
             self.cache['icon:'+key]=style
             return
         self.send(f'cirs {cx},{cy},{radius},{bg}')

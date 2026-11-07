@@ -50,7 +50,7 @@ class FeatureNavigationTests(unittest.TestCase):
         value=hub(); value.camera=Mock(); value.navigate('status')
         self.touch(value,550,30); self.assertEqual(value.screen,'viewfinder')
         value.camera.capture.assert_not_called(); value.camera.probe.assert_not_called()
-        self.touch(value,690,30); self.assertEqual(value.screen,'status')
+        self.touch(value,690,30); self.assertEqual(value.screen,'home')
 
     def test_lock_cancels_camera_and_prevents_capture_routes(self):
         value=hub(); value.camera=Mock(); value.marker=Mock(); value.spotify_wake=Mock()
@@ -62,7 +62,7 @@ class FeatureNavigationTests(unittest.TestCase):
         value=hub(); value.navigate('music'); value.music.update(is_active=False,_ready=False)
         commands=[]; value.send=commands.append; value.render()
         self.assertTrue(any('Escuchar aquí' in command for command in commands))
-        self.touch(value,160,395)
+        self.touch(value,160,310)
         self.assertEqual(value.screen,'music')
         self.assertEqual(value.music_commands.get_nowait()['command'],['activate'])
 

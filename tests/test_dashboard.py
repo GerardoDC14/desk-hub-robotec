@@ -120,7 +120,7 @@ class ToolsTests(unittest.TestCase):
         self.assertFalse(value.unlocked); self.assertIsNone(value.notice); self.assertEqual(value.screen,'lock')
 
     def test_seek_and_shuffle_are_queued(self):
-        value=hub(); value.screen='music'; value.touch(544,267)
+        value=hub(); value.screen='music'; value.touch(248,323)
         self.assertEqual(value.music_commands.get_nowait()['command'],['seek','100000'])
         value.last_touch=0; value.touch(700,32)
         self.assertEqual(value.screen,'music_options')

@@ -15,7 +15,7 @@ Consulta [Diseño y respuesta del panel](docs/DISENO.md) para el archivo editabl
 - **Inicio:** reloj, fecha, temperatura y datos actuales; un toque alterna un pronóstico de tres horas. Las cuentas en curso se pueden abrir desde su tarjeta.
 - **Tiempo:** Temporizador, Cronómetro con reloj analógico y vueltas, Alarma local de una ejecución y sesiones de enfoque con descansos y rondas configurables.
 - **Fuera:** hora de regreso grande, cuenta restante, proyectos públicos con navegación y QR al perfil de GitHub. Al iniciar, bloquea y detiene Spotify.
-- **Spotify:** portada progresiva de 96 × 96, iconos suavizados, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, fondo estable, desplazamiento de títulos largos y estados de conexión.
+- **Spotify:** portada progresiva de 96 × 96, iconos suavizados, canción, artista, contexto, siguiente tema, avance al tocar la barra, aleatorio, repetición y volumen directo. Controles con iconos, barra de volumen, fondo estable, títulos en dos líneas cuando hace falta y estados de conexión.
 - **Música guardada:** hasta 24 canciones o episodios elegidos desde el panel, con reproducción, eliminación y deshacer. La selección se guarda localmente y no modifica las listas de Spotify.
 - **Cámara opcional:** encuadre continuo local, disparo con cuenta de tres segundos, timelapse, álbum por fechas y sesiones, favoritos, giros, presentación y siete opciones de imagen. Permite exportar timelapses a MP4 con FFmpeg. Guarda copias con efectos sin modificar las fotos originales; los archivos permanecen privados en la Pi.
 - **PIN:** seis dígitos configurados localmente; tres intentos fallidos suspenden el teclado treinta segundos.
@@ -55,6 +55,8 @@ Continúa con [Instalación y servicios](docs/INSTALACION.md), [Firmware Nextion
 ## Uso
 
 
+La barra inferior abre Inicio, Spotify, Tiempo, Fuera, Tareas y Cámara directamente.
+
 La interfaz usa fondo grafito, texto blanco de alto contraste y navegación grande. El brillo normal es del 100 %; el brillo de la vista ambiental se ajusta entre 20 y 100 %, con 60 % de forma predeterminada. Los reflejos del cristal y el ángulo de visión pueden seguir afectando la lectura; orienta la pantalla para evitar luces reflejadas directamente.
 
 Al encender el panel queda bloqueado; si hay una salida pendiente, conserva su aviso público. Introduce tu PIN y pulsa Entrar; no se distribuye un PIN predeterminado. Ayuda abre una guía local sin habilitar Spotify ni revelar el PIN. Desde las vistas normales, toca ROBOTEC / AYUDA. El panel reintenta la conexión si enciendes Nextion después de la Pi.
@@ -85,7 +87,7 @@ Vistas reconstruidas con datos de demostración y tipografía aproximada.
 
 Toca **Estado** en el encabezado para revisar la red local, audio, Spotify y pantalla. **Reconectar Spotify** pide confirmación si hay música o carga activa, reinicia el receptor y descarta órdenes pendientes; después selecciónalo de nuevo desde el teléfono. Abre **Estado → Pantalla y bloqueo** para ajustar los dos tiempos y el brillo ambiental. Con los valores predeterminados, tras **1 minuto sin tocar la pantalla** aparece la vista ambiental y, después de **5 minutos más sin tocarla**, se bloquea el Hub y se detiene Spotify. Tocar la pantalla reinicia la inactividad; los cambios desde Spotify en el teléfono no la reinician. **Ver ahora** abre la vista ambiental de inmediato. El temporizador, cronómetro y alarmas conservan sus estados al bloquear. Consulta [Experiencia y recuperación](docs/EXPERIENCIA.md) y [Uso compartido](docs/USO_COMPARTIDO.md).
 
-Con una cámara CSI conectada y las herramientas `rpicam-apps` instaladas, abre **Estado → Cámara** para tomar fotos o iniciar una secuencia a intervalos. Las capturas son JPEG de 1280 × 720 píxeles y permanecen en la Pi; no hay captura al arrancar ni al entrar en esa vista. Bloquear detiene la secuencia. Sigue [Cámara: fotos y timelapse](docs/CAMARA.md) para conectar el flex con el equipo apagado, comprobar el sensor y copiar las imágenes por SSH.
+Con una cámara CSI conectada y las herramientas `rpicam-apps` instaladas, abre **Cámara** para tomar fotos o iniciar una secuencia a intervalos. Las capturas son JPEG de 1280 × 720 píxeles y permanecen en la Pi; no hay captura al arrancar ni al entrar en esa vista. Bloquear detiene la secuencia. Sigue [Cámara: fotos y timelapse](docs/CAMARA.md) para conectar el flex con el equipo apagado, comprobar el sensor y copiar las imágenes por SSH.
 
 En **Cámara**, pulsa **Activar cámara** para encuadrar sin guardar imágenes. El disparador permite una cuenta de tres segundos y abre la foto recién guardada. La vista se detiene al salir o bloquearse.
 
@@ -101,7 +103,7 @@ Para desconectar, toca **Apagar** en la esquina superior de Inicio y confirma si
 
 ## Configuración y funcionamiento
 
-**Estado → Tareas Robotec** muestra las tareas abiertas de Notion con fecha de consulta y acceso a su siguiente paso. Requiere desbloquear el panel. La lectura periódica necesita una conexión de Notion propia para la Pi; una copia guardada se identifica como tal. Consulta [configuración de Notion](docs/NOTION.md).
+**Tareas** muestra las tareas abiertas de Notion con fecha de consulta y acceso a su siguiente paso. Requiere desbloquear el panel. La lectura periódica necesita una conexión de Notion propia para la Pi; una copia guardada se identifica como tal. Consulta [configuración de Notion](docs/NOTION.md).
 
 `.env.example` permite seleccionar puerto serial, perfil público de GitHub, ubicación del clima y nombre del receptor. La configuración real, PIN, claves y SQLite permanecen fuera del repositorio. El PIN restringe el panel y la disponibilidad de Spotify; no sustituye la seguridad de SSH y de la red.
 

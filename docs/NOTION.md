@@ -1,6 +1,6 @@
 # Tareas de Robotec en el Hub
 
-Abre **Estado → Tareas Robotec** con el panel desbloqueado. Cada tarjeta muestra el nombre de una tarea, su estado y su fecha. Tócala para leer el siguiente paso; **Volver a tareas** regresa a la lista. Anterior y Siguiente recorren las páginas. No se modifican tareas desde el Hub.
+Abre **Tareas** con el panel desbloqueado. Cada tarjeta muestra el nombre de una tarea, su estado y su fecha. Tócala para leer el siguiente paso; **Volver a tareas** regresa a la lista. Anterior y Siguiente recorren las páginas. No se modifican tareas desde el Hub.
 
 El encabezado indica la última consulta. **Copia guardada / conexión pendiente** significa que hay información guardada pero no se ha configurado la actualización autónoma. **Sincronizado** confirma una consulta completada. Si falla Internet, se conserva la última consulta con su fecha. Las tareas no aparecen en Fuera ni en la vista ambiental.
 
