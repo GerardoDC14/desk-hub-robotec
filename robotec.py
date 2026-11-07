@@ -289,6 +289,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
         self.soft_button(key,x,y,w,h,value,selected,font)
 
     def navigate(self,view):
+        self._photo_action=None; self._trash_item=None
         if not self.unlocked and view not in ('lock','away','help'): view='lock'
         if view=='ambient' and self.screen!='ambient' and self.ambient_since is None:
             self.ambient_since=time.monotonic()

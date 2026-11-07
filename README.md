@@ -87,6 +87,8 @@ En **Cámara**, pulsa **Activar cámara** para encuadrar sin guardar imágenes. 
 
 En **Cámara → Galería**, explora seis miniaturas por página y toca una para abrirla. **Presentar** muestra las fotos automáticamente; permite pausar y mantiene el bloqueo por inactividad. Prueba Original, B/N, Sepia, Negativo, Pop, Espejo o Boceto; la vista previa no modifica ningún archivo. **Guardar copia** crea un JPEG separado con el efecto y conserva el tamaño de la foto. Detén las capturas o el timelapse antes de guardar una copia. La galería requiere desbloquear el panel y muestra fotos existentes, sin vídeo en directo.
 
+Para quitar una foto, ábrela y pulsa **Eliminar → Eliminar**. **Cancelar** conserva la foto en el álbum. La foto se mueve a una papelera privada que persiste tras reiniciar. En **Galería → Papelera**, usa **Anterior/Siguiente** y **Restaurar** para recuperarla. **Borrar para siempre → Eliminar** elimina únicamente la foto seleccionada y no se puede deshacer. Detén la cámara o el timelapse antes de gestionar fotos. La papelera sigue ocupando almacenamiento: sólo el borrado definitivo libera ese espacio. Las copias con filtros se gestionan por separado de sus originales.
+
 ![Vista ambiental](docs/images/ambient.png)
 
 Vista reconstruida con datos de demostración y tipografía aproximada.

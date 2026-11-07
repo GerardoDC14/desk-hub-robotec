@@ -10,11 +10,13 @@ class MediaViews:
         self.artwork.extend(commands); self.art_total+=len(commands)
 
     def draw_gallery_grid(self):
+        if getattr(self,'_photo_action',None): self.draw_photo_dialog(); return
         c=self.theme; library=getattr(self,'photos',None)
         if not library: return
         state=library.grid(getattr(self,'_album_page',0),unlocked=self.unlocked)
         self._album_page=state['page']; self._album_names=[i['name'] for i in state['items']]
-        self.text('albumtitle',32,62,736,30,0,'Tus momentos',c['ink'],c['bg'])
+        self.text('albumtitle',32,62,528,30,0,'Tus momentos',c['ink'],c['bg'])
+        self.soft_button('albumtrash',600,58,168,38,'Papelera',False,2)
         identity=tuple(i['key'] for i in state['items'])
         if self.cache.get('album-layout')!=identity:
             self.artwork.clear(); self.art_key=None
@@ -130,9 +132,12 @@ class MediaViews:
     def touch_media(self,x,y):
         if not self.unlocked: return False
         screen=self.screen
+        if screen=='gallery_grid' and getattr(self,'_photo_action',None): return self.touch_photo_dialog(x,y)
         if 632<=x<768 and 12<=y<52:
             self.navigate('status' if screen=='viewfinder' else 'viewfinder' if screen=='gallery_grid' else 'gallery_grid'); return True
         if screen=='gallery_grid':
+            if 600<=x<768 and 58<=y<96:
+                self.photo_dialog('trash_list'); return True
             if 496<=x<616 and 12<=y<52:
                 state=self.photos.grid(getattr(self,'_album_page',0),unlocked=True)
                 if state['count']:

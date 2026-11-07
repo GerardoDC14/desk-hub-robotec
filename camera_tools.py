@@ -82,7 +82,7 @@ class CameraController:
             try:
                 if item.is_file() and not item.is_symlink():
                     size += item.stat().st_size
-                    if item.suffix.lower() in ('.jpg', '.jpeg'): files += 1
+                    if not item.name.startswith('.') and item.suffix.lower() in ('.jpg', '.jpeg'): files += 1
             except FileNotFoundError:
                 pass
         return files, size

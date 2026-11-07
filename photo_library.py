@@ -15,6 +15,7 @@ import camera_tools as limits
 
 FILTERS = ('Original', 'B/N', 'Sepia', 'Negativo', 'Pop', 'Espejo', 'Boceto')
 PHOTO_NAME = re.compile(r'(?:foto|efecto)-[A-Za-z0-9][A-Za-z0-9_-]{0,95}\.jpg\Z')
+TRASH_NAME = re.compile(r'\.trash-[a-f0-9]{32}--((?:foto|efecto)-[A-Za-z0-9][A-Za-z0-9_-]{0,95}\.jpg)\Z')
 PREVIEW_SIZE = (128, 72)
 MAX_PREVIEWS = 8
 MAX_DECODE_PIXELS = 16_000_000
@@ -252,6 +253,61 @@ class PhotoLibrary:
             self._save_job = ('save', self._key_locked(), self._generation, self._access)
             self._cv.notify_all()
             return True
+
+    def trash_items(self, unlocked=False):
+        """Papelera persistente; sus bytes siguen contando para el límite."""
+        with self._cv:
+            if not self._allowed_locked(unlocked) or not self._root_valid(): return []
+            result=[]
+            for path in self.directory.iterdir():
+                match=TRASH_NAME.fullmatch(path.name)
+                if not match: continue
+                try:
+                    info=path.lstat()
+                    if stat.S_ISREG(info.st_mode) and info.st_nlink==1:
+                        result.append(dict(token=path.name, name=match[1], signature=self._signature(info)))
+                except OSError: pass
+            return sorted(result,key=lambda row: row['signature'][3],reverse=True)
+
+    def manage_photo(self, action, name, signature, unlocked=False):
+        """Opera sólo sobre la revisión confirmada; nunca sobre otra selección."""
+        with self._cv:
+            if not self._allowed_locked(unlocked) or not self._root_valid(): return False
+            if self._saving or self.camera._busy or self.camera._job or self.camera._sequence:
+                self._message='Espera a que termine la cámara'; return False
+            try:
+                if action=='trash':
+                    path,info=self._file_info(name)
+                    target=self.directory/('.trash-'+uuid.uuid4().hex+'--'+name)
+                elif action in ('restore','purge'):
+                    match=TRASH_NAME.fullmatch(name)
+                    if not match: return False
+                    path=self.directory/name; info=path.lstat()
+                    if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1: return False
+                    target=self.directory/match[1]
+                else: return False
+                if self._signature(info)!=tuple(signature): return False
+                if action=='purge': path.unlink()
+                else:
+                    # Un enlace exclusivo evita sustituir un archivo existente.
+                    os.link(path,target,follow_symlinks=False)
+                    try: path.unlink()
+                    except OSError:
+                        target.unlink(); raise
+                self._cache.clear(); self._thumbs.clear(); self._thumb_job=None
+                self._changed_locked(); self._refresh_locked(force=True)
+                self.camera._usage_cache=None
+                self._message={'trash':'Foto en la papelera','restore':'Foto restaurada','purge':'Foto eliminada definitivamente'}[action]
+                return True
+            except (OSError,ValueError):
+                self._message='No se pudo completar. La foto se conserva.'; return False
+
+    def selected_revision(self, unlocked=False):
+        with self._cv:
+            if not self._allowed_locked(unlocked): return None
+            self._refresh_locked(force=True)
+            key=self._key_locked()
+            return dict(name=key[0],signature=key[1]) if key else None
 
     def lock(self):
         with self._cv:

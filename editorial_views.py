@@ -37,6 +37,9 @@ class EditorialViews:
         if self.screen in ('gallery','gallery_grid','viewfinder','photo_show'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
             self.draw_connection_badge()
+            if getattr(self,'_photo_action',None):
+                self.soft_button('galleryback',632,12,136,40,'Volver')
+                self.dirty=False; return
             self.soft_button('galleryback',632,12,136,40,{'gallery':'Álbum','gallery_grid':'Cámara','viewfinder':'Volver','photo_show':'Álbum'}[self.screen])
             if self.screen=='gallery_grid': self.soft_button('showstart',496,12,120,40,'Presentar')
             self.dirty=False; return
