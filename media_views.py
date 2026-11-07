@@ -159,6 +159,7 @@ class MediaViews:
                         self.photos.set_filter('Original',unlocked=True); self.navigate('gallery')
                     return True
         elif screen=='viewfinder':
+            if 496<=x<616 and 12<=y<52:self.navigate('booth');return True
             if not (584<=x<768): return False
             state=self.camera.snapshot()
             if 104<=y<180 and not getattr(self,'_shot_due',None) and not getattr(self,'_shot_wait',None):

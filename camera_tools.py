@@ -51,6 +51,7 @@ class CameraController:
         self._popen = popen; self._clock = clock; self._wall_clock = wall_clock
         self._cv = threading.Condition(threading.RLock())
         self._closed = False; self._job = None; self._busy = False; self._process = None; self._editing = False
+        self._booth_active=False; self._booth_working=False
         self._generation = 0; self._sequence = None; self._next_due = None
         self._kind = None; self._preview = None; self._latest_jpeg = None; self._preview_id = 0
         self._connected = None; self._last_filename = ''; self._error = ''
@@ -68,7 +69,7 @@ class CameraController:
                 self._usage_cache = cached
             _, files, size = cached
             return dict(status=self._status, connected=self._connected,
-                        available=bool(self.executable), busy=self._busy or self._job is not None or self._editing,
+                        available=bool(self.executable), busy=self._busy or self._job is not None or self._editing or self._booth_active or self._booth_working,
                         timelapse=self._sequence is not None, completed=self._completed,
                         requested=self._requested, last_filename=self._last_filename,
                         error=self._error, photo_count=files, storage_bytes=size,
@@ -91,9 +92,9 @@ class CameraController:
         files, size = self._usage()
         return files < MAX_PHOTOS and size + MAX_FILE_BYTES <= MAX_STORAGE_BYTES
 
-    def _enqueue(self, kind, unlocked):
+    def _enqueue(self, kind, unlocked, booth=False):
         with self._cv:
-            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing:
+            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing or self._booth_working or (self._booth_active and not booth):
                 return False
             if not self.executable:
                 self._status = 'Instala rpicam-apps para usar la cámara'; return False
@@ -104,8 +105,8 @@ class CameraController:
     def probe(self, unlocked=False):
         return self._enqueue('probe', unlocked)
 
-    def capture(self, unlocked=False):
-        return self._enqueue('capture', unlocked)
+    def capture(self, unlocked=False, booth=False):
+        return self._enqueue('capture', unlocked,booth=booth)
 
     def preview(self, unlocked=False):
         """Solicita un encuadre en RAM, sin crear fotografías ni un servidor."""
@@ -127,7 +128,7 @@ class CameraController:
     def start_timelapse(self, interval=30, count=12, unlocked=False):
         if interval not in INTERVALS or count not in COUNTS: return False
         with self._cv:
-            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing:
+            if not unlocked or self._closed or self._busy or self._job or self._sequence or self._editing or self._booth_active or self._booth_working:
                 return False
             if not self.executable:
                 self._status = 'Instala rpicam-apps para usar la cámara'; return False

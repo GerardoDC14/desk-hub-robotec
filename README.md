@@ -124,3 +124,7 @@ El clima procede de [Open-Meteo](https://open-meteo.com/) y los proyectos de la 
 ## Panel del teléfono
 
 Abre **Estado → Invitados → Teléfono** con el PIN del anfitrión y genera un QR temporal. Desde la misma red puedes controlar música y cuentas, descargar fotos originales y ver la cámara por Wi-Fi. Consulta [uso, conexión y límites de privacidad](docs/TELEFONO.md).
+
+## Cabina de fotos
+
+En **Estado → Cámara → Cabina**, elige formato, filtro y marco e inicia una sesión de cuatro fotos con cuenta regresiva. Se guarda una tira o cuadrícula y se conservan los cuatro originales. Consulta la [guía de la cabina](docs/CABINA.md).

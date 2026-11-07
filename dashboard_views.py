@@ -132,6 +132,7 @@ class DashboardViews:
 
     def poll_tools(self):
         self.poll_phone()
+        if getattr(self,'booth',None):self.booth.poll(self.owner())
         if self.unlocked and getattr(self,'role','owner')=='guest' and not self.guest.active():self.lock_hub()
         self.check_inactivity()
         changed=self.alarm.poll()

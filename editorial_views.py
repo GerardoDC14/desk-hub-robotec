@@ -34,7 +34,7 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
-        if self.screen in ('sharing','phone'):
+        if self.screen in ('sharing','phone','booth'):
             if self.screen=='sharing':self.soft_button('phoneopen',496,12,120,40,'Teléfono')
             self.soft_button('sharingback',632,12,136,40,'Volver')
             self.dirty=False;return
@@ -50,6 +50,7 @@ class EditorialViews:
                 self.dirty=False; return
             self.soft_button('galleryback',632,12,136,40,{'gallery':'Álbum','gallery_grid':'Cámara','viewfinder':'Volver','photo_show':'Álbum'}[self.screen])
             if self.screen=='gallery_grid': self.soft_button('showstart',496,12,120,40,'Presentar')
+            if self.screen=='viewfinder':self.soft_button('boothopen',496,12,120,40,'Cabina')
             self.dirty=False; return
         if not self.compact and self.screen not in ('lock','power','ambient','duration','help','confirm_reconnect','display_settings'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])

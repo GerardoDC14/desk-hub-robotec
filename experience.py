@@ -175,7 +175,7 @@ class Experience:
             elif y>=424:
                 self.navigate(['home','time','away','music'][min(3,x//200)])
             return True
-        if not self.compact and 224<=x<480 and 12<=y<52 and self.screen not in ('lock','power'):
+        if not self.compact and 224<=x<480 and 12<=y<52 and self.screen not in ('lock','power','phone','sharing','booth','notion'):
             self.navigate('status'); return True
         if self.screen in ('time','away') and not self.compact:
             if self.screen=='away' and 128<=y<164 and 32<=x<768:
