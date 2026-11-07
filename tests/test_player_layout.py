@@ -2,9 +2,35 @@
 import unittest
 from unittest.mock import Mock
 from test_dashboard import hub
+from music_state import apply_event
 
 class PlayerLayoutTests(unittest.TestCase):
     def tap(self,h,x,y):h.last_touch=0;h.touch(x,y)
+
+    def test_album_is_track_parent_not_playlist_and_clears_on_next_track(self):
+        state={}
+        apply_event(state,dict(type='track_changed',item=dict(uri='a',decorations=dict(
+            parent=dict(entity=dict(entity_type='album',decorations=dict(identity=dict(name='Álbum real')))))),
+            context=dict(decorations=dict(identity=dict(name='Mi playlist')))))
+        self.assertEqual(state['album'],'Álbum real')
+        apply_event(state,dict(type='track_changed',item=dict(uri='b',decorations={})))
+        self.assertEqual(state['album'],'')
+
+    def test_listen_here_transfers_without_clearing_art_or_metadata(self):
+        h=hub();h.screen='music';h.music.update(is_active=False,_ready=False,status='playing',album='Mi álbum')
+        h.images['music']=('cover',[1]*256);h.art_key=('music','cover')
+        commands=[];h.send=commands.append;h.render()
+        self.assertTrue(any('"Escuchar aquí"' in c for c in commands))
+        self.assertTrue(any('"Mi álbum"' in c for c in commands))
+        self.tap(h,592,280)
+        self.assertEqual(h.music_commands.get_nowait()['command'],['activate'])
+        self.assertEqual(h.music['album'],'Mi álbum');self.assertIn('music',h.images)
+        self.assertIsNotNone(h.music_pending)
+
+    def test_listen_here_resumes_paused_local_track_without_seeking(self):
+        h=hub();h.screen='music';h.music['status']='paused'
+        self.tap(h,592,280)
+        self.assertEqual(h.music_commands.get_nowait()['command'],['play'])
 
     def test_six_destinations_available_from_main_screens(self):
         for source in ('home','music','time','away','status'):
@@ -39,13 +65,13 @@ class PlayerLayoutTests(unittest.TestCase):
     def test_help_area_becomes_seek_only_after_local_playback_ready(self):
         h=hub();h.screen='music';h.music.update(is_active=False,_ready=False,logged_in=False)
         self.tap(h,592,280);self.assertEqual(h.screen,'help');self.assertTrue(h.music_commands.empty())
-        h.navigate('music');h.music.update(is_active=True,_ready=True,logged_in=True)
+        h.navigate('music');h.music.update(is_active=True,_ready=True,logged_in=True,status="playing")
         self.tap(h,592,280);self.assertEqual(h.music_commands.get_nowait()['command'],['seek','100000'])
 
     def test_short_title_clears_both_old_title_lines(self):
         h=hub();h.screen='music';h.music['title']='Una canción con un título suficientemente largo para ocupar dos líneas'
         h.render();commands=[];h.send=commands.append;h.music['title']='Luz';h.render()
-        self.assertTrue(any(c.startswith('fill 416,100,352,88,') for c in commands))
+        self.assertTrue(any(c.startswith('fill 416,96,352,80,') for c in commands))
         self.assertTrue(any('"Luz"' in c and ',1,' in c for c in commands))
         self.assertFalse(any(c.startswith('cls ') for c in commands))
 

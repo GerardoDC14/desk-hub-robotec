@@ -29,11 +29,13 @@ def apply_event(state, event, monotonic=time.monotonic, wall=time.time):
     if kind in ('playback_state','track_changed'):
         decor = (event.get('item') or {}).get('decorations',{})
         covers = decor.get('visual_identity',{}).get('cover',[])
+        parent = (decor.get('parent') or {}).get('entity') or {}
+        album = (parent.get('decorations') or {}).get('identity',{}).get('name','') if parent.get('entity_type')=='album' else ''
         if (event.get('item') or {}).get('uri')!=state.get('uri'):
             state['next_title']=''
         state.update(uri=(event.get('item') or {}).get('uri',''),title=decor.get('identity',{}).get('name') or 'Selecciona Desk Hub Robotec',
                      artist=', '.join(c.get('entity',{}).get('decorations',{}).get('identity',{}).get('name','') for c in decor.get('creators',[])) or 'Spotify Connect',
-                     duration=decor.get('playback',{}).get('duration_ms',0),
+                     album=album, duration=decor.get('playback',{}).get('duration_ms',0),
                      cover=covers[0]['url'] if covers else None)
         if kind == 'track_changed':
             state['position'] = {'position_ms':0,'speed':1 if state.get('status')=='playing' else 0}

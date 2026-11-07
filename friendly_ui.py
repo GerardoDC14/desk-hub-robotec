@@ -46,8 +46,8 @@ class FriendlyUI:
         if not self.compact and self.screen not in ('ambient','duration','power') and 12<=y<52 and 32<=x<210:
             self.open_help(); return True
         if self.screen=='music' and 416<=x<768 and 258<=y<302:
-            with self.lock: ready=control_ready(self.music); logged_in=self.music.get('logged_in',False)
-            if not ready:
+            with self.lock: ready=control_ready(self.music); logged_in=self.music.get('logged_in',False); playing=self.music.get('status')=='playing'
+            if not ready or not playing:
                 if logged_in: self.request_selected_music()
                 else: self.open_help(0)
                 return True

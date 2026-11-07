@@ -188,7 +188,7 @@ class EditorialViews:
         c=self.theme; meter=getattr(self,'output_meter',None)
         levels=meter.snapshot() if active and meter else (0.0,)*16
         for i,level in enumerate(levels):
-            height=max(2,min(28,round(level*28)))
+            height=max(2,min(20,round(level*20)))
             key='soundbar'+str(i); old=self.cache.get(key,0)
             x=416+i*22
             if height>old:self.fill(x,246-height,12,height-old,c['mint'] if active else c['button'])
@@ -204,24 +204,25 @@ class EditorialViews:
         self.text('playing',416,72,352,24,2,self.fit(self.music_label(music),352),c['mint'],c['bg'])
         title=music['title']; big=self.text_width(title,1)<=352
         if self.cache.get('titlelayout')!=big:
-            self.fill(416,100,352,88,c['bg'])
+            self.fill(416,96,352,80,c['bg'])
             for key in ('musictitlebig','musictitle0','musictitle1'):self.cache.pop(key,None)
             self.cache['titlelayout']=big
-        if big:self.text('musictitlebig',416,100,352,88,1,title,c['ink'],c['bg'])
-        else:self.paragraph('musictitle',416,108,352,title,2,0)
-        self.text('musicartist',416,192,352,26,2,self.fit(music['artist'],352),c['muted'],c['bg'])
+        if big:self.text('musictitlebig',416,96,352,80,1,title,c['ink'],c['bg'])
+        else:self.paragraph('musictitle',416,96,352,title,2,0)
+        self.text('musicartist',416,178,352,22,2,self.fit(music['artist'],352),c['ink'],c['bg'])
+        self.text('musicalbum',416,202,352,22,2,self.fit(music.get('album') or '',352),c['muted'],c['bg'])
         self.draw_output_meter(active)
         ms=position_ms(music); duration=music.get('duration',0)
-        if self.cache.get('musicassiststate')!=ready:
+        if self.cache.get('musicassiststate')!=active:
             self.fill(416,250,352,52,c['bg'])
             for key in ('elapsed','tracklength','delta:trackprogress','button:musichelp','musichelp'):self.cache.pop(key,None)
-            self.cache['musicassiststate']=ready
-        if ready:
+            self.cache['musicassiststate']=active
+        if active:
             self.text('elapsed',416,250,128,24,2,f'{int(ms)//60000}:{int(ms)//1000%60:02}',c['muted'],c['bg'])
             self.text('tracklength',640,250,128,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
             self.progress('trackprogress',416,280,352,ms/max(1,duration),c['mint'])
         else:
-            title='Conectando...' if getattr(self,'music_pending',None) else 'Escuchar aquí' if music.get('logged_in',False) else '¿Cómo conectar?'
+            title='Conectando...' if getattr(self,'music_pending',None) else 'Escuchar aquí'
             self.soft_button('musichelp',416,258,352,44,title,True,0)
         for key,x,icon,selected in [('prev',472,'prev',False),('toggle',592,'pause' if music['status']=='playing' else 'play',True),('next',712,'next',False)]:
             self.icon_button(key,x,342,34 if selected else 26,icon,selected and ready,ready)

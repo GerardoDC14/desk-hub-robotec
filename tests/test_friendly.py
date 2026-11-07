@@ -59,7 +59,7 @@ class FriendlyTests(unittest.TestCase):
     def test_inactive_music_offers_help_without_claiming_playback(self):
         value=hub(); value.screen='music'; value.music.update(is_active=False,_ready=False,logged_in=False)
         commands=[]; value.send=commands.append; value.render()
-        self.assertTrue(any('¿Cómo conectar?' in c for c in commands))
+        self.assertTrue(any('Escuchar aquí' in c for c in commands))
         value.touch(592,280); self.assertEqual(value.screen,'help'); self.assertTrue(value.music_commands.empty())
 
 

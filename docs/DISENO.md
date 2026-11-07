@@ -7,7 +7,7 @@ El panel utiliza seis destinos principales: Inicio, Spotify, Tiempo, Fuera, Tare
 ## Legibilidad y controles
 
 - Fondo grafito, texto claro y acento verde suave; la portada no cambia la paleta del reproductor.
-- El reproductor sitúa la portada de 344 × 344 a la izquierda. A la derecha aparecen canción y artista, progreso, controles de reproducción y volumen. El título utiliza la fuente grande cuando cabe y dos líneas de tamaño normal cuando necesita más espacio. Los símbolos de anterior y siguiente están centrados como un conjunto de triángulo y barra.
+- El reproductor sitúa la portada de 344 × 344 a la izquierda. A la derecha aparecen canción, artista y nombre del álbum, progreso, controles de reproducción y volumen. El título utiliza la fuente grande cuando cabe y dos líneas de tamaño normal cuando necesita más espacio. Los símbolos de anterior y siguiente están centrados como un conjunto de triángulo y barra.
 - Las zonas táctiles deben conservar la geometría de los controles visibles. Al modificar un control, revisa tanto su dibujo como su manejo del toque.
 - La vista ambiental puede utilizar colores derivados de la portada. Un toque vuelve al panel antes del bloqueo; después se requiere el PIN.
 
@@ -30,3 +30,5 @@ Las 16 barras muestran la amplitud reciente de la salida de audio de la Raspberr
 El monitor utiliza `parec` de `pulseaudio-utils`, con `@DEFAULT_MONITOR@`: escucha la salida predeterminada, no el micrófono. Solo funciona con el panel desbloqueado, Spotify abierto y reproducción local activa. Al pausar, cambiar de pantalla o bloquear, se detiene y limpia su historial. Las muestras se procesan en memoria; no se guardan ni se envían a otro equipo. Si el monitor no está disponible, las barras permanecen quietas.
 
 `tests/test_audio_meter.py` comprueba amplitud, silencio, historial acotado, descarte de muestras antiguas, activación restringida, dibujo por diferencias y centrado de los símbolos de transporte.
+
+El nombre del álbum se obtiene de los metadatos de la canción y aparece debajo del artista. Si no está disponible, se deja la línea vacía. Cuando la música está en otro dispositivo, «Escuchar aquí» solicita la transferencia al Hub conservando la portada visible; espera a que el receptor esté preparado antes de continuar la reproducción. Con reproducción local pausada, el mismo botón la reanuda. Sin una sesión de Spotify conectada, abre la guía de conexión.
