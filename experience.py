@@ -160,7 +160,7 @@ class Experience:
             return True
         if self.screen=='status':
             if 632<=x<768 and 12<=y<52: self.navigate('home')
-            elif 496<=x<616 and 12<=y<52: self.navigate('camera')
+            elif 496<=x<616 and 12<=y<52: self.navigate('viewfinder')
             elif 294<=y<330 and 32<=x<768:
                 self.open_display()
             elif 350<=y<406 and 32<=x<408:

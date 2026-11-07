@@ -37,16 +37,16 @@ def apply_filter(image, name):
     return ImageOps.autocontrast(ImageOps.invert(edges)).convert('RGB')
 
 
-def preview_pixels(image):
+def preview_pixels(image, size=PREVIEW_SIZE, colors=96):
     """Miniatura 16:9 de 96 colores, devuelta como píxeles RGB565 inmutables."""
-    canvas = Image.new('RGB', PREVIEW_SIZE, (12, 18, 24))
-    thumbnail = ImageOps.contain(image, PREVIEW_SIZE, Image.Resampling.LANCZOS)
+    canvas = Image.new('RGB', size, (12, 18, 24))
+    thumbnail = ImageOps.contain(image, size, Image.Resampling.LANCZOS)
     canvas.paste(thumbnail, ((canvas.width-thumbnail.width)//2, (canvas.height-thumbnail.height)//2))
-    canvas = canvas.quantize(colors=96, method=Image.Quantize.MEDIANCUT).convert('RGB')
+    canvas = canvas.quantize(colors=colors, method=Image.Quantize.MEDIANCUT).convert('RGB')
     raw = canvas.tobytes()
     pixels = tuple(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
                    for r, g, b in zip(raw[::3], raw[1::3], raw[2::3]))
-    return (*PREVIEW_SIZE, pixels)
+    return (*size, pixels)
 
 
 class PhotoLibrary:
@@ -70,6 +70,7 @@ class PhotoLibrary:
         self._preview = None; self._preview_key = None; self._original_size = None
         self._cache = OrderedDict(); self._failed_key = None
         self._preview_job = None; self._save_job = None; self._working = None
+        self._thumb_job = None; self._thumbs = OrderedDict()
         self._saving = False; self._message = ''; self._error = ''; self._last_saved = ''
         self._thread = threading.Thread(target=self._worker, name='desk-hub-photo-library', daemon=True)
         self._thread.start()
@@ -197,6 +198,24 @@ class PhotoLibrary:
             self._queue_preview_locked()
             return True
 
+    def grid(self, page=0, unlocked=False):
+        """Seis miniaturas asíncronas, identificadas por archivo y revisión."""
+        with self._cv:
+            if not self._allowed_locked(unlocked):
+                return dict(count=0, page=0, pages=1, items=[])
+            self._refresh_locked()
+            pages=max(1,(len(self._photos)+5)//6); page=max(0,min(int(page),pages-1))
+            entries=self._photos[page*6:page*6+6]; missing=[]; items=[]
+            for name, signature in entries:
+                key=(name,signature,'Original')
+                if key not in self._thumbs: missing.append(key)
+                items.append(dict(name=name, key=key, preview=self._thumbs.get(key),
+                                  error=key in self._thumbs and self._thumbs[key] is None))
+            if missing:
+                job=('thumbs',tuple(missing),0,self._access)
+                if self._working != job: self._thumb_job=job; self._cv.notify_all()
+            return dict(count=len(self._photos),page=page,pages=pages,items=items)
+
     def move(self, step, unlocked=False):
         with self._cv:
             if not self._allowed_locked(unlocked) or not isinstance(step, int) or isinstance(step, bool): return False
@@ -239,6 +258,7 @@ class PhotoLibrary:
                 self._access += 1; self._generation += 1
             self._unlocked = False
             self._preview_job = self._save_job = None
+            self._thumb_job = None; self._thumbs.clear()
             self._preview = self._preview_key = self._original_size = None
             self._cache.clear(); self._failed_key = None; self._message = self._error = ''
             if not self._working or self._working[0] != 'save':
@@ -277,14 +297,16 @@ class PhotoLibrary:
         while True:
             with self._cv:
                 if self._closed: return
-                job = self._save_job or self._preview_job
+                job = self._save_job or self._preview_job or self._thumb_job
                 if job is None:
                     self._cv.wait(timeout=.25); continue
                 if job[0] == 'save': self._save_job = None
+                elif job[0] == 'thumbs': self._thumb_job = None
                 else: self._preview_job = None
                 self._working = job
             try:
                 if job[0] == 'save': self._export(job)
+                elif job[0] == 'thumbs': self._make_thumbs(job)
                 else: self._make_preview(job)
             except Exception:
                 with self._cv:
@@ -298,6 +320,18 @@ class PhotoLibrary:
                         self._saving = False; self.camera._editing = False
                         self.camera._usage_cache = None
                     self._working = None; self._cv.notify_all()
+
+    def _make_thumbs(self, job):
+        for key in job[1]:
+            with self._cv:
+                if not self._valid_locked(job[3]): return
+                if key in self._thumbs: continue
+            try: pixels=preview_pixels(self._read_image(key),size=(48,27),colors=32)
+            except (OSError, ValueError): pixels=None
+            with self._cv:
+                if not self._valid_locked(job[3]): return
+                self._thumbs[key]=pixels; self._thumbs.move_to_end(key)
+                while len(self._thumbs)>24: self._thumbs.popitem(last=False)
 
     def _make_preview(self, job):
         _, key, generation, access = job

@@ -302,7 +302,7 @@ class CameraViewTests(unittest.TestCase):
 
     def test_gallery_opens_from_a_visible_button_without_capturing(self):
         view=self.View(); self.assertTrue(view.touch_camera(500,350))
-        self.assertEqual(view.routes,['gallery']); self.assertEqual(view.camera.calls,[])
+        self.assertEqual(view.routes,['gallery_grid']); self.assertEqual(view.camera.calls,[])
 
     def test_presets_and_actions_match_hit_areas(self):
         view=self.View()

@@ -27,6 +27,8 @@ class GalleryViews:
         self.soft_button('gallerysave',584,410,184,50,'Guardando...' if state and state['saving'] else 'Guardar copia',selected!='Original' and bool(count),2)
         filename=state['filename'] if state else ''
         message=state['status'] if state else 'Cámara no disponible'
+        captured=getattr(self,'_capture_notice',None)
+        if captured and captured[0]==filename and time.monotonic()<captured[1]: message='Foto guardada'
         self.text('galleryfilename',152,410,288,24,2,self.fit(filename,288),c['muted'],c['bg'],1)
         self.text('gallerystatus',152,438,288,24,2,self.fit(message,288),c['mint'],c['bg'],1)
         if not count:
@@ -54,7 +56,7 @@ class GalleryViews:
         library=getattr(self,'photos',None)
         if not self.unlocked or not library: return False
         if 632<=x<768 and 12<=y<52:
-            self.navigate('camera'); return True
+            self.navigate('gallery_grid'); return True
         state=library.snapshot(unlocked=True)
         before=(state['filename'],state['filter'],state.get('preview_key'))
         changed=False

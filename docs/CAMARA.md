@@ -1,6 +1,6 @@
 # Cámara: fotos, timelapse y galería
 
-La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Estado → Cámara**. Su galería muestra las fotos guardadas y permite crear copias con efectos. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
+La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Estado → Cámara**. Incluye encuadre actualizado, álbum de miniaturas, presentación y copias con efectos. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
 
 ## Conectar una cámara a la Pi 3 B
 
@@ -26,19 +26,27 @@ rpicam-hello --list-cameras
 
 El último comando enumera sensores; no guarda una foto. Un módulo OV5647 debe aparecer identificado como `ov5647`. Si no aparece ninguna cámara, apaga y revisa conexión, orientación y estado del flex antes de repetir. No habilites controladores de otro sensor por el texto REV de la placa. Consulta la [guía oficial de software e instalación](https://www.raspberrypi.com/documentation/accessories/camera-software.html) para configuración específica del módulo.
 
-## Foto manual
+## Encuadrar y tomar una foto
 
-![Controles de cámara](images/camera.png)
+![Vista de cámara](images/camera-viewfinder.png)
 
-Vista reconstruida con datos de demostración y tipografía aproximada.
+Vista reconstruida con una imagen sintética y tipografía aproximada.
 
-Desbloquea el Hub y abre **Estado → Cámara**. Pulsa **Probar cámara** para comprobar la detección sin guardar imágenes. Después pulsa **Tomar foto**. Espera a que aparezca Foto guardada en la Raspberry antes de solicitar otra captura; se muestra el nombre del último archivo. Cada foto es un JPEG de 1280 × 720 píxeles. Copia la imagen al ordenador para revisar el resultado.
+1. Desbloquea el Hub y abre **Estado → Cámara**.
+2. Pulsa **Activar cámara**. La imagen de encuadre se actualiza por intervalos; espera a que termine de dibujarse antes de ajustar de nuevo la posición. No se guardan fotos durante esta vista.
+3. **Sin cuenta** cambia a **Cuenta: 3 s** si quieres un pequeño retardo antes de disparar. Pulsa otra vez para quitarlo.
+4. Pulsa **Tomar foto**. La vista se pausa, se completa la cuenta elegida y se guarda un JPEG de **1280 × 720 píxeles**. El Hub abre la foto en el visor para revisarla o aplicarle un efecto.
+5. **Álbum** vuelve a las miniaturas. Desde allí, **Cámara** permite preparar otra foto.
+
+**Pausar vista** conserva el último encuadre en pantalla y detiene las actualizaciones. La imagen en pausa no representa lo que ocurre en ese instante. Salir de Cámara detiene el encuadre, y volver requiere pulsar Activar cámara. El modo ambiental también interrumpe el encuadre; bloquear cancela cualquier captura pendiente y limpia los datos de vista previa.
+
+La cámara obtiene imágenes de 320 × 180 píxeles en memoria; el panel muestra una versión de 48 × 27 para reducir la transmisión serie. No es vídeo fluido: la cámara necesita aproximadamente 1–2 segundos por encuadre, a lo que se suma el dibujo en pantalla. Como referencia, el encuadre completo puede renovarse aproximadamente cada 3–5 segundos; el intervalo depende del detalle y de los cambios en la escena. Las fotos guardadas conservan una resolución mucho mayor. No se abre un servidor de imágenes ni se transmiten por la red.
 
 Orienta la cámara al objeto o experimento que quieres registrar. En un laboratorio compartido, informa a las personas presentes antes de fotografiarlas y evita incluir documentos o pantallas ajenos al experimento.
 
 ## Timelapse
 
-Elige un intervalo de **10, 30 o 60 segundos** y una secuencia de **12, 30 o 60 fotos**. Pulsa **Iniciar timelapse**: la primera captura se solicita inmediatamente y las siguientes según el intervalo, sin solapar capturas. El Hub guarda imágenes JPEG individuales; no genera un vídeo. Puedes salir a otra vista mientras se completa.
+En **Estado → Cámara → Timelapse**, elige un intervalo de **10, 30 o 60 segundos** y una secuencia de **12, 30 o 60 fotos**. Pulsa **Iniciar timelapse**: la primera captura se solicita inmediatamente y las siguientes según el intervalo, sin solapar capturas. El Hub guarda imágenes JPEG individuales; no genera un vídeo. Puedes salir a otra vista mientras se completa.
 
 **Detener timelapse** termina la secuencia. Bloquear el panel también cancela capturas pendientes y en curso; no se reanudan automáticamente al desbloquear o reiniciar. Iniciar Fuera bloquea el panel y detiene la secuencia. Para un timelapse largo, ajusta previamente los tiempos en **Estado → Pantalla y bloqueo** y vuelve a bloquear el Hub cuando termines. Entrar en Cámara o arrancar el servicio no toma fotos.
 
@@ -48,13 +56,19 @@ El almacenamiento está limitado a **100 imágenes o 250 MiB**, contando fotos o
 
 La galería es compartida en el dispositivo: cualquier persona que desbloquee el panel puede ver las fotos guardadas.
 
-![Galería con una imagen de demostración](images/gallery.png)
+![Álbum de miniaturas](images/gallery-grid.png)
+
+![Visor con una imagen de demostración](images/gallery.png)
 
 ![Vista previa del efecto Negativo](images/gallery-negative.png)
 
 Vistas reconstruidas con una imagen sintética de demostración y tipografía aproximada; no muestran fotografías tomadas en el laboratorio.
 
-Abre **Estado → Cámara → Galería** con el panel desbloqueado. **Anterior** y **Siguiente** recorren las imágenes guardadas; debajo aparece el nombre de la foto seleccionada. Si todavía no hay fotos, vuelve a Cámara y toma una. Consultar la galería no inicia la cámara ni captura imágenes.
+Abre **Estado → Cámara → Galería** con el panel desbloqueado. El álbum muestra **seis miniaturas por página**, ordenadas de más reciente a más antigua, con fecha y hora. **Anterior** y **Siguiente** cambian de página. Toca una miniatura para abrir la foto y sus efectos. Dentro del visor, Anterior y Siguiente recorren las fotos; **Álbum** regresa a las miniaturas. Si todavía no hay fotos, vuelve a Cámara y toma una. Consultar la galería no inicia la cámara ni captura imágenes.
+
+**Presentar** abre un marco de fotos privado. Cada foto permanece ocho segundos después de terminar de dibujarse, y al llegar a la última se vuelve a la primera. Puedes pausar, continuar o cambiar de foto manualmente. **Álbum** termina la presentación. La presentación respeta los tiempos de vista ambiental y bloqueo: no prolonga por sí sola la sesión desbloqueada.
+
+![Presentación de fotos](images/photo-show.png)
 
 Elige un efecto a la derecha para previsualizarlo:
 
@@ -70,13 +84,13 @@ Elige un efecto a la derecha para previsualizarlo:
 
 Cambiar de efecto solo modifica la vista previa. **Guardar copia** crea un JPEG nuevo con el efecto elegido; el original permanece intacto. Selecciona un efecto distinto de Original para guardar. La copia conserva las dimensiones de la foto de origen: las capturas del Hub son de 1280 × 720 píxeles. Antes de guardarla, espera a que termine una captura manual o detén el timelapse.
 
-Las copias se guardan en la misma carpeta con nombres que empiezan por `efecto-`; las capturas comienzan por `foto-`. Ambas aparecen en la galería y cuentan para el límite de almacenamiento. Comprueba el mensaje de resultado antes de solicitar otra copia. El botón **Cámara** regresa a los controles de captura.
+Las copias se guardan en la misma carpeta con nombres que empiezan por `efecto-`; las capturas comienzan por `foto-`. Ambas aparecen en la galería y cuentan para el límite de almacenamiento. Comprueba el mensaje de resultado antes de solicitar otra copia. El botón **Álbum** regresa a las miniaturas.
 
 Nextion presenta una vista reducida que se dibuja progresivamente por UART. Puede tardar varios segundos en completarse y no representa el detalle del JPEG guardado; copia el archivo al ordenador para revisarlo a tamaño completo. Esta vista recorre fotos existentes, no es una vista en directo de la cámara. Bloquear limpia la vista previa y cancela trabajos pendientes de galería; las imágenes ya guardadas se conservan.
 
 ## Copiar las imágenes
 
-Las capturas se guardan en `~/.local/share/desk-hub/camera` con la configuración predeterminada. Si ejecutas el panel con `--state-dir OTRA_RUTA`, estarán en `OTRA_RUTA/camera`. Los permisos son 700 para la carpeta y 600 para las imágenes. Solo la cuenta Linux propietaria y administradores del sistema pueden acceder normalmente a ellas. No se publican en GitHub ni se sirven mediante una página web. La función no transmite vídeo en directo.
+Las capturas se guardan en `~/.local/share/desk-hub/camera` con la configuración predeterminada. Si ejecutas el panel con `--state-dir OTRA_RUTA`, estarán en `OTRA_RUTA/camera`. Los permisos son 700 para la carpeta y 600 para las imágenes. Solo la cuenta Linux propietaria y administradores del sistema pueden acceder normalmente a ellas. No se publican en GitHub ni se sirven mediante una página web. El encuadre de cámara se procesa localmente en memoria.
 
 Desde PowerShell en el ordenador, sustituye `USUARIO` e `IP_DE_LA_PI` por los del equipo y ejecuta:
 

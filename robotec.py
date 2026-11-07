@@ -32,6 +32,7 @@ from music_library import MusicLibrary, LibraryViews
 from camera_tools import CameraController, CameraViews
 from photo_library import PhotoLibrary
 from gallery_views import GalleryViews
+from media_views import MediaViews
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -103,7 +104,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -287,6 +288,10 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
         if not self.unlocked and view not in ('lock','away','help'): view='lock'
         if view=='ambient' and self.screen!='ambient' and self.ambient_since is None:
             self.ambient_since=time.monotonic()
+        if self.screen=='viewfinder' and view!='viewfinder':
+            if getattr(self,'camera',None): self.camera.stop_preview()
+            self._live_on=False; self._shot_due=None; self._shot_wait=None
+        self._show_due=None
         self.screen=view
         self.compact=(view=='away' and self.timer.data['mode']=='away' and (self.timer.data['deadline'] is not None or getattr(self,'away_pending',False))) or (view=='time' and (self.watch['started'] is not None if self.time_mode=='watch' else self.time_mode!='alarm' and self.timer.data['deadline'] is not None and self.timer.data['mode']!='away'))
         self.dirty=True
@@ -341,6 +346,8 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
         if not self.unlocked:
             return
         if self.touch_experience(x,y): return
+        if self.screen in ('gallery_grid','viewfinder','photo_show'):
+            self.touch_media(x,y); return
         if self.screen=='gallery': self.touch_gallery(x,y); return
         if self.screen=='power':
             if 260<=y<330:
@@ -455,7 +462,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
         batch=[]; count=0
         while self.artwork:
             command=self.artwork[0]
-            if batch and count+len(command)+3>(220 if self.screen=='gallery' else 256): break
+            if batch and count+len(command)+3>(220 if self.screen in ('gallery','gallery_grid','viewfinder','photo_show') else 256): break
             batch.append(self.artwork.popleft()); count+=len(command)+3
         self.send_batch(batch)
         if not self.artwork:
@@ -529,6 +536,9 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
         elif self.screen=='library': self.draw_library()
         elif self.screen=='camera': self.draw_camera()
         elif self.screen=='gallery': self.draw_gallery()
+        elif self.screen=='gallery_grid': self.draw_gallery_grid()
+        elif self.screen=='viewfinder': self.draw_viewfinder()
+        elif self.screen=='photo_show': self.draw_photo_show()
 
         elif self.screen=='github':
             self.art('github',24,88,192)

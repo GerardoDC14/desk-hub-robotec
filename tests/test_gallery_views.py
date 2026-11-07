@@ -131,7 +131,7 @@ class GalleryRenderTests(unittest.TestCase):
             self.assertGreaterEqual(x,584); self.assertLessEqual(x+w,768)
             self.assertGreaterEqual(y,100); self.assertLessEqual(y+h,397)
         camera=[args for args,kwargs in buttons if args[0]=='galleryback']
-        self.assertEqual(len(camera),1); self.assertEqual(camera[0][5],'Cámara')
+        self.assertEqual(len(camera),1); self.assertEqual(camera[0][5],'Álbum')
         self.assertFalse(any(key.startswith('nav') for key in value.cache))
 
     def test_stable_preview_does_not_requeue_or_redraw_its_base(self):
@@ -189,7 +189,7 @@ class GalleryIntegrationTests(unittest.TestCase):
     def test_header_camera_action_uses_camera_route(self):
         value=value_with_photos(); value.draw_gallery()
         self.touch(value,700,30)
-        self.assertEqual(value.screen,'camera')
+        self.assertEqual(value.screen,'gallery_grid')
         self.assertEqual(list(value.artwork),[]); self.assertIsNone(value.art_key)
 
     def test_bottom_gallery_controls_are_not_intercepted_by_navigation(self):

@@ -7,6 +7,8 @@ import subprocess
 import threading
 import time
 import uuid
+import io
+from PIL import Image
 from font_metrics import text_width
 
 INTERVALS = (10, 30, 60)
@@ -47,6 +49,7 @@ class CameraController:
         self._cv = threading.Condition(threading.RLock())
         self._closed = False; self._job = None; self._busy = False; self._process = None; self._editing = False
         self._generation = 0; self._sequence = None; self._next_due = None
+        self._kind = None; self._preview = None; self._preview_id = 0
         self._connected = None; self._last_filename = ''; self._error = ''
         self._completed = 0; self._requested = 0; self._usage_cache = None
         self._status = 'Cámara sin comprobar' if self.executable else 'Faltan herramientas de cámara'
@@ -66,6 +69,7 @@ class CameraController:
                         timelapse=self._sequence is not None, completed=self._completed,
                         requested=self._requested, last_filename=self._last_filename,
                         error=self._error, photo_count=files, storage_bytes=size,
+                        preview=self._preview, preview_id=self._preview_id,
                         next_seconds=max(0, int(self._next_due-self._clock())) if self._next_due else 0)
 
     def _usage(self):
@@ -99,6 +103,23 @@ class CameraController:
     def capture(self, unlocked=False):
         return self._enqueue('capture', unlocked)
 
+    def preview(self, unlocked=False):
+        """Solicita un encuadre en RAM, sin crear fotografías ni un servidor."""
+        return self._enqueue('preview', unlocked)
+
+    def stop_preview(self):
+        with self._cv:
+            self._preview = None
+            if self._kind != 'preview' and (not self._job or self._job[0] != 'preview'):
+                return
+            self._generation += 1
+            if self._job and self._job[0] == 'preview': self._job = None
+            process = self._process if self._kind == 'preview' else None
+            self._cv.notify_all()
+        if process is not None:
+            try: process.terminate()
+            except OSError: pass
+
     def start_timelapse(self, interval=30, count=12, unlocked=False):
         if interval not in INTERVALS or count not in COUNTS: return False
         with self._cv:
@@ -116,6 +137,7 @@ class CameraController:
     def _cancel(self, status):
         with self._cv:
             self._generation += 1; self._sequence = None; self._next_due = None; self._job = None
+            self._preview = None
             process = self._process
             self._status = status
             self._cv.notify_all()
@@ -147,7 +169,8 @@ class CameraController:
                 if self._job is None:
                     self._cv.wait(timeout=0.25); continue
                 kind, generation = self._job; self._job = None; self._busy = True
-                self._status = 'Buscando cámara…' if kind == 'probe' else 'Tomando foto…'
+                self._kind = kind
+                self._status = {'probe':'Buscando cámara…', 'preview':'Actualizando encuadre…', 'capture':'Tomando foto…'}[kind]
             try:
                 self._execute(kind, generation)
             except Exception:
@@ -158,7 +181,7 @@ class CameraController:
                         self._status = self._error; self._sequence = None; self._next_due = None
             finally:
                 with self._cv:
-                    self._busy = False; self._process = None; self._cv.notify_all()
+                    self._busy = False; self._process = None; self._kind = None; self._cv.notify_all()
 
     def _execute(self, kind, generation):
         temporary = None
@@ -179,8 +202,12 @@ class CameraController:
                     descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
                     os.close(descriptor)
                 command = camera_command(self.executable, temporary)
-                process = self._popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                      text=True, shell=False)
+                if kind == 'preview':
+                    command = [str(self.executable), '--nopreview', '-t', '700', '--width', '320',
+                               '--height', '180', '--encoding', 'jpg', '-o', '-']
+                process = self._popen(command, stdout=subprocess.PIPE,
+                                      stderr=subprocess.DEVNULL if kind == 'preview' else subprocess.STDOUT,
+                                      text=kind != 'preview', shell=False)
                 self._process = process
             deadline = self._clock()+PROCESS_TIMEOUT
             while True:
@@ -206,6 +233,15 @@ class CameraController:
                 if kind == 'probe':
                     self._connected = camera_present(output)
                     self._status = ('OV5647 lista' if 'ov5647' in (output or '').lower() else 'Cámara lista') if self._connected else 'No se detectó cámara'
+                    return
+                if kind == 'preview':
+                    from photo_library import preview_pixels
+                    if not output or len(output) > MAX_FILE_BYTES: raise ValueError('Encuadre vacío')
+                    with Image.open(io.BytesIO(output)) as image:
+                        if image.width*image.height > 1_000_000: raise ValueError('Encuadre inválido')
+                        self._preview = preview_pixels(image, size=(48,27), colors=32)
+                    self._preview_id += 1; self._connected = True
+                    self._status = 'Encuadre actualizado'
                     return
                 size = temporary.stat().st_size
                 files, total = self._usage()
@@ -245,7 +281,7 @@ class CameraViews:
     """Controles de cámara manual; no transmite vídeo ni toma fotos al entrar."""
     def draw_camera(self):
         c = self.theme; camera = getattr(self, 'camera', None)
-        self.text('cameratitle',32,76,736,48,0,'Cámara de laboratorio',c['ink'],c['bg'])
+        self.text('cameratitle',32,76,736,48,0,'Timelapse',c['ink'],c['bg'])
         if camera is None:
             self.text('camerastatus',32,140,736,60,0,'Cámara no disponible',c['ink'],c['bg'])
             return
@@ -257,7 +293,7 @@ class CameraViews:
         self.text('camerastatus',32,128,736,32,status_font,status,c['mint'],c['bg'])
         self.text('cameraprivate',32,166,736,26,2,'1280 x 720 / fotos privadas en la Raspberry',c['muted'],c['bg'])
         self.soft_button('cameracapture',32,204,344,52,'Tomando…' if state['busy'] else 'Tomar foto',True,0)
-        self.soft_button('cameraprobe',408,204,360,52,'Probar cámara',False,0)
+        self.soft_button('cameraprobe',408,204,360,52,'Ver cámara',False,0)
         interval = getattr(self, '_camera_interval', 30); count = getattr(self, '_camera_count', 12)
         self.text('cameraintervallabel',32,272,112,36,2,'Intervalo',c['ink'],c['bg'])
         for i, value in enumerate(INTERVALS):
@@ -276,7 +312,7 @@ class CameraViews:
         state = camera.snapshot(); changed = False
         if 204<=y<256:
             if 32<=x<376: changed = camera.capture(unlocked=True)
-            elif 408<=x<768: changed = camera.probe(unlocked=True)
+            elif 408<=x<768: self.navigate('viewfinder'); return True
         elif 272<=y<308 and not state['timelapse'] and not state['busy']:
             for i,value in enumerate(INTERVALS):
                 if 148+i*96<=x<236+i*96: self._camera_interval=value; changed=True
@@ -284,7 +320,7 @@ class CameraViews:
                 if 532+i*80<=x<608+i*80: self._camera_count=value; changed=True
         elif 326<=y<378:
             if 408<=x<768:
-                self.navigate('gallery'); return True
+                self.navigate('gallery_grid'); return True
             if 32<=x<376:
                 if state['timelapse']:
                     camera.stop_timelapse(); changed=True

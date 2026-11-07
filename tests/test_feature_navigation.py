@@ -48,7 +48,7 @@ class FeatureNavigationTests(unittest.TestCase):
 
     def test_camera_entry_is_explicit_and_does_not_capture(self):
         value=hub(); value.camera=Mock(); value.navigate('status')
-        self.touch(value,550,30); self.assertEqual(value.screen,'camera')
+        self.touch(value,550,30); self.assertEqual(value.screen,'viewfinder')
         value.camera.capture.assert_not_called(); value.camera.probe.assert_not_called()
         self.touch(value,690,30); self.assertEqual(value.screen,'status')
 
