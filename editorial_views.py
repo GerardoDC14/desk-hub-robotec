@@ -34,6 +34,9 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
+        if self.screen=='sharing':
+            self.soft_button('sharingback',632,12,136,40,'Volver')
+            self.dirty=False;return
         if self.screen=='notion':
             self.soft_button('notionrefresh',496,12,120,40,'Actualizar')
             self.soft_button('notionback',632,12,136,40,'Volver')
@@ -52,8 +55,8 @@ class EditorialViews:
             self.draw_connection_badge()
             if self.screen=='status': self.soft_button('statusback',632,12,136,40,'Volver')
             elif self.screen=='home':
-                self.soft_button('lockmanual',504,12,120,40,'Bloquear')
-                self.soft_button('power',648,12,120,40,'Apagar')
+                self.soft_button('lockmanual',504,12,120,40,'Salir' if getattr(self,'role','owner')=='guest' else 'Bloquear')
+                if getattr(self,'role','owner')!='guest':self.soft_button('power',648,12,120,40,'Apagar')
             elif self.screen in ('music','music_options'):
                 self.soft_button('musicoptions',632,12,136,40,'Volver' if self.screen=='music_options' else 'Opciones')
                 if self.screen=='music': self.soft_button('libraryopen',496,12,120,40,'Guardadas')
@@ -67,6 +70,7 @@ class EditorialViews:
             if self.screen=='status': self.soft_button('cameraopen',496,12,120,40,'Cámara')
             self.fill(32,426,736,1,c['button'])
             for i,(view,title) in enumerate(TABS):
+                if view=='away' and getattr(self,'role','owner')=='guest':title='Salir'
                 selected=view==self.screen or (view=='music' and self.screen in ('music_options','library')) or (view=='time' and self.screen=='focus')
                 self.text('nav'+view,i*200+24,431,152,40,0,title,c['mint'] if selected else c['ink'],c['bg'],1)
                 if selected: self.fill(i*200+78,473,44,3,c['mint'])
@@ -211,6 +215,6 @@ class EditorialViews:
             self.text('optionlabel'+str(i),48,y,360,52,0,label,c['ink'],c['bg'])
             self.soft_button('optionvalue'+str(i),488,y,264,52,value,False,0)
         self.text('displayshortcut',48,287,704,26,2,'Vista ambiental y PIN según la inactividad',c['mint'],c['bg'])
-        self.soft_button('displaysettings',48,314,704,42,'Pantalla y bloqueo',False,0)
+        if getattr(self,'role','owner')!='guest':self.soft_button('displaysettings',48,314,704,42,'Pantalla y bloqueo',False,0)
         self.text('nextlabel',48,365,704,24,2,'A CONTINUACIÓN',c['mint'],c['bg'])
         self.text('nexttrack',48,391,704,30,2,self.fit(music.get('next_title') or 'La cola se controla desde Spotify',704),c['ink'],c['bg'])

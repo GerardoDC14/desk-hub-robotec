@@ -50,7 +50,8 @@ class NotionTests(unittest.TestCase):
         restored=NotionBoard(self.root,threading.Event(),start=False)
         self.assertEqual(restored.snapshot(True)['tasks'],first['tasks'])
         h=hub();h.notion=board;h.screen='notion';h._notion_selected=first['tasks'][0]
-        h.role='guest';commands=[];h.send=commands.append;h.render()
+        from guest_access import GuestAccess
+        h.guest=GuestAccess();h.guest.create();h.role='guest';commands=[];h.send=commands.append;h.render()
         self.assertFalse(any('Privada' in c for c in commands))
 
     def test_ui_list_detail_back_and_lock_gate(self):

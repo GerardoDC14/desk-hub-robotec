@@ -51,6 +51,8 @@ Continúa con [Instalación y servicios](docs/INSTALACION.md), [Firmware Nextion
 
 ## Uso
 
+Para compartir música y temporizadores sin entregar el PIN del anfitrión, abre **Estado → Invitados** y crea un código de una u ocho horas. El invitado no puede acceder a fotos, cámara, Notion ni configuración privada. Consulta [uso del modo invitado](docs/INVITADOS.md).
+
 La interfaz usa fondo grafito, texto blanco de alto contraste y navegación grande. El brillo normal es del 100 %; el brillo de la vista ambiental se ajusta entre 20 y 100 %, con 60 % de forma predeterminada. Los reflejos del cristal y el ángulo de visión pueden seguir afectando la lectura; orienta la pantalla para evitar luces reflejadas directamente.
 
 Al encender el panel queda bloqueado; si hay una salida pendiente, conserva su aviso público. Introduce tu PIN y pulsa Entrar; no se distribuye un PIN predeterminado. Ayuda abre una guía local sin habilitar Spotify ni revelar el PIN. Desde las vistas normales, toca ROBOTEC / AYUDA. El panel reintenta la conexión si enciendes Nextion después de la Pi.

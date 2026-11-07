@@ -93,7 +93,7 @@ class Experience:
         if self.cache.get('connectiondot')!=good:
             self.send(f"cirs 239,32,4,{c['mint'] if good else c['gold']}")
             self.cache['connectiondot']=good
-        self.text('connection',256,12,216,40,2,'Estado / red local' if good else 'Estado / revisar',c['ink'],c['button'])
+        self.text('connection',256,12,216,40,2,'Modo invitado' if getattr(self,'role','owner')=='guest' else 'Estado / red local' if good else 'Estado / revisar',c['ink'],c['button'])
 
     def music_label(self,music):
         label=connection_label(music,getattr(self,'music_stream_online',False) or time.monotonic()-getattr(self,'last_music_seen',0)<8)
@@ -163,8 +163,9 @@ class Experience:
                 self._notion_selected=None;self.navigate('notion');return True
             if 632<=x<768 and 12<=y<52: self.navigate('home')
             elif 496<=x<616 and 12<=y<52: self.navigate('viewfinder')
-            elif 294<=y<330 and 32<=x<768:
+            elif 294<=y<330 and 32<=x<408:
                 self.open_display()
+            elif 294<=y<330 and 432<=x<768:self.navigate('sharing')
             elif 350<=y<406 and 32<=x<408:
                 with self.lock: playing=self.music.get('is_active') and self.music.get('status') in ('playing','buffering')
                 if playing: self.navigate('confirm_reconnect')
@@ -205,6 +206,7 @@ class Experience:
             y=136+i*38
             self.text('statuslabel'+str(i),32,y,152,34,2,label,c['muted'],c['bg'])
             self.text('statusvalue'+str(i),192,y,576,34,0 if self.text_width(value,0)<576 else 2,value,c['ink'],c['bg'])
-        self.soft_button('ambientsetting',32,290,736,44,'Pantalla y bloqueo',False,0)
+        self.soft_button('ambientsetting',32,290,376,44,'Pantalla y bloqueo',False,0)
+        self.soft_button('sharingopen',432,290,336,44,'Invitados',False,0)
         self.soft_button('reconnect',32,350,376,56,'Reconectar Spotify',False,0)
         self.soft_button('ambientnow',432,350,336,56,'Vista ambiental',True,0)
