@@ -32,20 +32,20 @@ class PlayerLayoutTests(unittest.TestCase):
 
     def test_transport_and_full_volume_range(self):
         h=hub();h.screen='music'
-        for x,y,expected in ((80,388,['prev']),(152,388,['play']),(224,388,['next']),
-                             (410,388,['volume','0']),(643,388,['volume','100'])):
+        for x,y,expected in ((472,342,['prev']),(592,342,['play']),(712,342,['next']),
+                             (456,396,['volume','0']),(687,396,['volume','100'])):
             self.tap(h,x,y);self.assertEqual(h.music_commands.get_nowait()['command'],expected)
 
     def test_help_area_becomes_seek_only_after_local_playback_ready(self):
         h=hub();h.screen='music';h.music.update(is_active=False,_ready=False,logged_in=False)
-        self.tap(h,248,323);self.assertEqual(h.screen,'help');self.assertTrue(h.music_commands.empty())
+        self.tap(h,592,280);self.assertEqual(h.screen,'help');self.assertTrue(h.music_commands.empty())
         h.navigate('music');h.music.update(is_active=True,_ready=True,logged_in=True)
-        self.tap(h,248,323);self.assertEqual(h.music_commands.get_nowait()['command'],['seek','100000'])
+        self.tap(h,592,280);self.assertEqual(h.music_commands.get_nowait()['command'],['seek','100000'])
 
     def test_short_title_clears_both_old_title_lines(self):
         h=hub();h.screen='music';h.music['title']='Una canción con un título suficientemente largo para ocupar dos líneas'
         h.render();commands=[];h.send=commands.append;h.music['title']='Luz';h.render()
-        self.assertTrue(any(c.startswith('fill 32,104,432,100,') for c in commands))
+        self.assertTrue(any(c.startswith('fill 416,100,352,88,') for c in commands))
         self.assertTrue(any('"Luz"' in c and ',1,' in c for c in commands))
         self.assertFalse(any(c.startswith('cls ') for c in commands))
 

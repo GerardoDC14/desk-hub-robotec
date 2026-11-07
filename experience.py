@@ -76,6 +76,9 @@ class Experience:
     def prepare_experience(self):
         # Único escritor de pantalla: los hilos de red sólo publican datos.
         self.check_inactivity(show_ambient=True)
+        if getattr(self,'output_meter',None):
+            with self.lock: meter_music=self.music.copy()
+            self.output_meter.set_enabled(self.unlocked and self.screen=='music' and control_ready(meter_music) and meter_music.get('status')=='playing')
         self.set_display_brightness()
         base=dict(type(self).theme)
         if self.screen=='ambient':

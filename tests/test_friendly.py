@@ -60,7 +60,7 @@ class FriendlyTests(unittest.TestCase):
         value=hub(); value.screen='music'; value.music.update(is_active=False,_ready=False,logged_in=False)
         commands=[]; value.send=commands.append; value.render()
         self.assertTrue(any('¿Cómo conectar?' in c for c in commands))
-        value.touch(160,310); self.assertEqual(value.screen,'help'); self.assertTrue(value.music_commands.empty())
+        value.touch(592,280); self.assertEqual(value.screen,'help'); self.assertTrue(value.music_commands.empty())
 
 
 class ForecastTests(unittest.TestCase):

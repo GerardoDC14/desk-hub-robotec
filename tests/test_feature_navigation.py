@@ -62,7 +62,7 @@ class FeatureNavigationTests(unittest.TestCase):
         value=hub(); value.navigate('music'); value.music.update(is_active=False,_ready=False)
         commands=[]; value.send=commands.append; value.render()
         self.assertTrue(any('Escuchar aquí' in command for command in commands))
-        self.touch(value,160,310)
+        self.touch(value,592,280)
         self.assertEqual(value.screen,'music')
         self.assertEqual(value.music_commands.get_nowait()['command'],['activate'])
 

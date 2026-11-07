@@ -184,37 +184,50 @@ class EditorialViews:
         self.soft_button('awaystart',240,342,320,56,'Estoy fuera',True,0)
         self.text('return',32,400,736,23,2,'Aviso de regreso · panel bloqueado · Spotify detenido',c['muted'],c['bg'],1)
 
+    def draw_output_meter(self,active):
+        c=self.theme; meter=getattr(self,'output_meter',None)
+        levels=meter.snapshot() if active and meter else (0.0,)*16
+        for i,level in enumerate(levels):
+            height=max(2,min(28,round(level*28)))
+            key='soundbar'+str(i); old=self.cache.get(key,0)
+            x=416+i*22
+            if height>old:self.fill(x,246-height,12,height-old,c['mint'] if active else c['button'])
+            elif height<old:self.fill(x,246-old,12,old-height,c['bg'])
+            # El color también cambia al pausar, sin borrar el panel.
+            if self.cache.get('soundactive')!=active:self.fill(x,246-height,12,height,c['mint'] if active else c['button'])
+            self.cache[key]=height
+        self.cache['soundactive']=active
+
     def draw_music(self,music):
-        c=self.theme; self.art('music',496,72,272)
-        self.text('playing',32,72,432,26,2,self.fit(self.music_label(music),432),c['mint'],c['bg'])
-        title=music['title']; big=self.text_width(title,1)<=432
+        c=self.theme; self.art('music',32,72,344)
+        ready=control_ready(music); active=ready and music['status']=='playing'
+        self.text('playing',416,72,352,24,2,self.fit(self.music_label(music),352),c['mint'],c['bg'])
+        title=music['title']; big=self.text_width(title,1)<=352
         if self.cache.get('titlelayout')!=big:
-            self.fill(32,104,432,100,c['bg'])
+            self.fill(416,100,352,88,c['bg'])
             for key in ('musictitlebig','musictitle0','musictitle1'):self.cache.pop(key,None)
             self.cache['titlelayout']=big
-        if big:self.text('musictitlebig',32,104,432,100,1,title,c['ink'],c['bg'])
-        else:self.paragraph('musictitle',32,112,432,title,2,0)
-        self.text('musicartist',32,210,432,40,0,self.fit(music['artist'],432,0),c['muted'],c['bg'])
-        self.text('musiccontext',32,255,432,24,2,self.fit(music.get('context') or 'Spotify Connect',432),c['muted'],c['bg'])
+        if big:self.text('musictitlebig',416,100,352,88,1,title,c['ink'],c['bg'])
+        else:self.paragraph('musictitle',416,108,352,title,2,0)
+        self.text('musicartist',416,192,352,26,2,self.fit(music['artist'],352),c['muted'],c['bg'])
+        self.draw_output_meter(active)
         ms=position_ms(music); duration=music.get('duration',0)
-        ready=control_ready(music)
         if self.cache.get('musicassiststate')!=ready:
-            self.fill(32,288,432,56,c['bg'])
+            self.fill(416,250,352,52,c['bg'])
             for key in ('elapsed','tracklength','delta:trackprogress','button:musichelp','musichelp'):self.cache.pop(key,None)
             self.cache['musicassiststate']=ready
         if ready:
-            self.text('elapsed',32,290,140,24,2,f'{int(ms)//60000}:{int(ms)//1000%60:02}',c['muted'],c['bg'])
-            self.text('tracklength',324,290,140,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
-            self.progress('trackprogress',32,323,432,ms/max(1,duration),c['mint'])
+            self.text('elapsed',416,250,128,24,2,f'{int(ms)//60000}:{int(ms)//1000%60:02}',c['muted'],c['bg'])
+            self.text('tracklength',640,250,128,24,2,f'{duration//60000}:{duration//1000%60:02}',c['muted'],c['bg'],2)
+            self.progress('trackprogress',416,280,352,ms/max(1,duration),c['mint'])
         else:
             title='Conectando...' if getattr(self,'music_pending',None) else 'Escuchar aquí' if music.get('logged_in',False) else '¿Cómo conectar?'
-            self.soft_button('musichelp',32,288,432,48,title,True,0)
-        self.panel('musicdock',32,356,736,64,c['card'],22)
-        for key,x,icon,selected in [('prev',80,'prev',False),('toggle',152,'pause' if music['status']=='playing' else 'play',True),('next',224,'next',False)]:
-            self.icon_button(key,x,388,30 if selected else 24,icon,selected and ready,ready,surface=c['card'])
-        self.text('volumelabel',296,367,100,40,2,'Volumen',c['muted'],c['card'])
-        self.progress('volumeprogress',410,384,234,music['volume']/100,c['mint'])
-        self.text('volume',664,367,88,40,0,str(music['volume'])+'%',c['ink'],c['card'],2)
+            self.soft_button('musichelp',416,258,352,44,title,True,0)
+        for key,x,icon,selected in [('prev',472,'prev',False),('toggle',592,'pause' if music['status']=='playing' else 'play',True),('next',712,'next',False)]:
+            self.icon_button(key,x,342,34 if selected else 26,icon,selected and ready,ready)
+        self.text('volumelabel',416,384,32,32,2,'Vol.',c['muted'],c['bg'])
+        self.progress('volumeprogress',456,396,232,music['volume']/100,c['mint'])
+        self.text('volume',704,384,64,32,2,str(music['volume'])+'%',c['ink'],c['bg'],2)
 
     def draw_music_options(self,music):
         c=self.theme; options=music.get('options',{}); repeat=options.get('repeat','off')

@@ -39,6 +39,7 @@ from gallery_views import GalleryViews
 from media_views import MediaViews
 from uart_speed import negotiate_speed
 from gallery_pixels import preview_passes
+from audio_meter import OutputMeter
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -185,6 +186,7 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
         if row: self.library=MusicLibrary(json.loads(row[0]))
         self.music.update(is_active=False,logged_in=False,_ready=False,_epoch=0)
         self.alert_sound=AlertSound(self.directory,self.stop)
+        self.output_meter=OutputMeter(self.stop)
         if self.watch['started'] is not None: self.time_mode='watch'
         self.ready.set()
         threading.Thread(target=self.music_events,daemon=True).start()
@@ -241,6 +243,7 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
             if desired!=self.spotify_desired: self.spotify_wake.set()
 
     def lock_hub(self,away=False):
+        if getattr(self,'output_meter',None): self.output_meter.set_enabled(False)
         self._notion_selected=None
         self.ambient_since=None
         self.unlocked=False
@@ -310,6 +313,7 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
         return view not in ('sharing','phone','booth','activity')
 
     def navigate(self,view):
+        if view!='music' and getattr(self,'output_meter',None): self.output_meter.set_enabled(False)
         if not self.authorized_view(view):view='home'
         self._photo_action=None; self._trash_item=None
         if not self.unlocked and view not in ('lock','away','help'): view='lock'
@@ -453,13 +457,13 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
                 options=m.get('options',{})
                 if 488<=x<752 and 159<=y<211: command=['shuffle','off' if options.get('shuffle') else 'on']
                 elif 488<=x<752 and 231<=y<283: command=['repeat',{'off':'context','context':'track','track':'off'}.get(options.get('repeat','off'),'off')]
-            elif 308<=y<344 and 32<=x<464:
-                if m.get('duration',0): command=['seek',str(round((x-32)/432*m['duration']))]
-            elif 356<=y<420 and x<272:
-                for cx,action in [(80,'prev'),(152,'pause' if m['status']=='playing' else 'play'),(224,'next')]:
-                    if (x-cx)**2+(y-388)**2<=(30 if cx==152 else 26)**2: command=[action]
-            elif 366<=y<414 and 410<=x<644:
-                value=max(0,min(100,round((x-410)/234*100)))
+            elif 267<=y<301 and 416<=x<768:
+                if m.get('duration',0): command=['seek',str(round((x-416)/352*m['duration']))]
+            elif 308<=y<377:
+                for cx,action in [(472,'prev'),(592,'pause' if m['status']=='playing' else 'play'),(712,'next')]:
+                    if (x-cx)**2+(y-342)**2<=(34 if cx==592 else 28)**2: command=[action]
+            elif 380<=y<420 and 456<=x<688:
+                value=max(0,min(100,round((x-456)/232*100)))
                 command=['volume',str(value)]
             if command: self.queue_music(command)
         elif self.screen=='github' and 346 <= y < 394:
@@ -694,6 +698,7 @@ if __name__=='__main__':
         try: hub.run()
         finally:
             hub.stop.set()
+            hub.output_meter.close()
             if hub.music_event_process and hub.music_event_process.poll() is None:
                 hub.music_event_process.terminate()
             if getattr(hub,'videos',None): hub.videos.close()

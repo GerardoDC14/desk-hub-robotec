@@ -43,12 +43,12 @@ class LayoutTests(unittest.TestCase):
 
     def test_music_slider_and_transport_keep_separate_hit_areas(self):
         value=hub(); value.screen='music'
-        for x,y in [(300,388),(480,323),(700,319)]:
+        for x,y in [(300,342),(530,342),(660,342)]:
             value.last_touch=0; value.touch(x,y)
         self.assertTrue(value.music_commands.empty())
-        value.last_touch=0; value.touch(152,388)
+        value.last_touch=0; value.touch(592,342)
         self.assertEqual(value.music_commands.get_nowait()['command'],['play'])
-        value.last_touch=0; value.touch(527,388)
+        value.last_touch=0; value.touch(572,396)
         self.assertEqual(value.music_commands.get_nowait()['command'],['volume','50'])
 
     def test_alarm_field_selection_and_volume_do_not_change_spotify(self):

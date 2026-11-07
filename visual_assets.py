@@ -18,9 +18,10 @@ def player_symbol(radius, icon, foreground, button, background):
     elif icon in ('play','next','prev'):
         direction=-1 if icon=='prev' else 1
         points=[(-7*direction,-13),(-7*direction,13),(13*direction,0)]
+        if icon!='play': points=[(x-5*direction,y) for x,y in points]
         d.polygon([((center+x)*scale,(center+y)*scale) for x,y in points],fill=rgb(foreground))
         if icon!='play':
-            x=14 if direction==1 else -17
+            x=9 if direction==1 else -12
             d.rounded_rectangle(box(x,-13,x+3,13),radius=scale,fill=rgb(foreground))
     im=im.resize((side,side),Image.Resampling.LANCZOS)
     raw=im.tobytes()
