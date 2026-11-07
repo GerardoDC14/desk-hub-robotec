@@ -97,6 +97,8 @@ Para desconectar, toca **Apagar** en la esquina superior de Inicio y confirma si
 
 ## Configuración y funcionamiento
 
+**Estado → Tareas Robotec** muestra las tareas abiertas de Notion con fecha de consulta y acceso a su siguiente paso. Requiere desbloquear el panel. La lectura periódica necesita una conexión de Notion propia para la Pi; una copia guardada se identifica como tal. Consulta [configuración de Notion](docs/NOTION.md).
+
 `.env.example` permite seleccionar puerto serial, perfil público de GitHub, ubicación del clima y nombre del receptor. La configuración real, PIN, claves y SQLite permanecen fuera del repositorio. El PIN restringe el panel y la disponibilidad de Spotify; no sustituye la seguridad de SSH y de la red.
 
 - [Arquitectura y límites](docs/ARQUITECTURA.md)

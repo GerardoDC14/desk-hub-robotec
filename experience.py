@@ -159,6 +159,8 @@ class Experience:
                     self.duration_digits=(self.duration_digits+key).lstrip('0'); self.duration_error=''
             return True
         if self.screen=='status':
+            if 600<=x<768 and 76<=y<120:
+                self._notion_selected=None;self.navigate('notion');return True
             if 632<=x<768 and 12<=y<52: self.navigate('home')
             elif 496<=x<616 and 12<=y<52: self.navigate('viewfinder')
             elif 294<=y<330 and 32<=x<768:
@@ -193,11 +195,12 @@ class Experience:
 
     def draw_status(self):
         c=self.theme; info=getattr(self,'system_info',{}); music=self.music
-        self.text('statustitle',32,76,736,48,0,'Conexiones del Hub',c['ink'],c['bg'])
+        self.text('statustitle',32,76,548,48,0,'Conexiones del Hub',c['ink'],c['bg'])
+        self.soft_button('notionopen',600,76,168,44,'Tareas Robotec')
         rows=[('Red',info.get('network','Comprobando...')+'  '+info.get('address','')),
               ('Audio',info.get('audio','Comprobando...')),
               ('Spotify',self.music_label(music)),
-              ('Pantalla','Conectada / 115200' if getattr(self,'online',False) else 'Esperando pantalla')]
+              ('Pantalla','Conectada / '+str(getattr(self,'uart_baud',115200)) if getattr(self,'online',False) else 'Esperando pantalla')]
         for i,(label,value) in enumerate(rows):
             y=136+i*38
             self.text('statuslabel'+str(i),32,y,152,34,2,label,c['muted'],c['bg'])

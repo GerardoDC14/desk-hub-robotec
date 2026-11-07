@@ -34,6 +34,10 @@ class EditorialViews:
     def draw_base(self):
         c=self.theme; self.send(f"cls {c['bg']}")
         if self.notice: self.dirty=False; return
+        if self.screen=='notion':
+            self.soft_button('notionrefresh',496,12,120,40,'Actualizar')
+            self.soft_button('notionback',632,12,136,40,'Volver')
+            self.dirty=False; return
         if self.screen in ('gallery','gallery_grid','viewfinder','photo_show'):
             self.text('brand',32,14,178,32,2,'ROBOTEC / AYUDA',c['ink'],c['bg'])
             self.draw_connection_badge()

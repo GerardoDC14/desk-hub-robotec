@@ -21,6 +21,7 @@ from soft_ui import SoftUI
 from dashboard_state import Alarm, AlertSound
 from dashboard_views import DashboardViews
 from timer_bank import TimerViews, NAMES
+from notion_board import NotionBoard, NotionViews
 from music_client import MusicClient
 from music_state import position_ms, control_ready
 from nextion_link import NextionLink
@@ -109,7 +110,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(NotionViews, TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -153,6 +154,7 @@ class Robotec(TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, Cam
         super().__init__(port,directory)
         row=self.db.execute("SELECT value FROM state WHERE key='timers'").fetchone()
         self.init_timers(json.loads(row[0]) if row else None)
+        self.notion=NotionBoard(self.directory,self.stop)
         try: self.camera=CameraController(self.directory)
         except OSError: self.camera=None
         self.photos=PhotoLibrary(self.camera) if self.camera else None
@@ -233,6 +235,7 @@ class Robotec(TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, Cam
             if desired!=self.spotify_desired: self.spotify_wake.set()
 
     def lock_hub(self,away=False):
+        self._notion_selected=None
         self.ambient_since=None
         self.unlocked=False
         if getattr(self,'photos',None): self.photos.lock()
@@ -359,6 +362,7 @@ class Robotec(TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, Cam
             self.touch_media(x,y); return
         if self.screen=='gallery': self.touch_gallery(x,y); return
         if self.screen=='timers': self.touch_timers(x,y); return
+        if self.screen=='notion': self.touch_notion(x,y); return
         if self.screen=='time' and 496<=x<616 and 12<=y<52:
             self.navigate('timers'); return
         if self.screen=='power':
@@ -548,6 +552,7 @@ class Robotec(TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, Cam
         elif self.screen=='library': self.draw_library()
         elif self.screen=='camera': self.draw_camera()
         elif self.screen=='timers': self.draw_timers()
+        elif self.screen=='notion': self.draw_notion()
         elif self.screen=='gallery': self.draw_gallery()
         elif self.screen=='gallery_grid': self.draw_gallery_grid()
         elif self.screen=='viewfinder': self.draw_viewfinder()
