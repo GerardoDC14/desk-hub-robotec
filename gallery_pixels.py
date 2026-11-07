@@ -5,6 +5,21 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 480
 
 
+def stable_pixels(pixels, previous):
+    """Suprime variaciones pequeñas comparando contra lo realmente dibujado.
+
+    El error no se acumula entre capturas: al superar el umbral respecto a
+    pantalla, el color nuevo se envía. Conserva bordes y cambios de escena.
+    """
+    if previous is None or len(previous)!=len(pixels): return tuple(pixels)
+    result=[]
+    for new,old in zip(pixels,previous):
+        close=(abs((new>>11)-(old>>11))<=2 and
+               abs(((new>>5)&63)-((old>>5)&63))<=3 and abs((new&31)-(old&31))<=2)
+        result.append(old if close else new)
+    return tuple(result)
+
+
 def _integer(value, label):
     try:
         if isinstance(value, bool): raise TypeError

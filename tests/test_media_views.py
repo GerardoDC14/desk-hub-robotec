@@ -37,7 +37,7 @@ class MediaBackendTests(unittest.TestCase):
         self.jpeg=out.getvalue()
         def popen(args,**kwargs):
             self.calls.append((args,kwargs)); return PreviewProcess(self.jpeg)
-        self.camera=CameraController(self.temp.name,popen=popen,which=lambda name:name)
+        self.camera=CameraController(self.temp.name,popen=popen,which=lambda name:name if name=='rpicam-still' else None)
         self.photos=PhotoLibrary(self.camera)
 
     def tearDown(self): self.photos.close(); self.camera.close(); self.temp.cleanup()
@@ -46,7 +46,7 @@ class MediaBackendTests(unittest.TestCase):
         self.assertFalse(self.camera.preview())
         self.assertTrue(self.camera.preview(unlocked=True))
         wait_for(self,lambda:self.camera.snapshot()['preview'] is not None)
-        state=self.camera.snapshot(); self.assertEqual(state['preview'][:2],(48,27))
+        state=self.camera.snapshot(); self.assertEqual(state['preview'][:2],(80,45))
         self.assertEqual(list(self.camera.directory.iterdir()),[])
         self.assertEqual(self.calls[0][0][-2:],['-o','-'])
         self.assertFalse(self.calls[0][1]['text'])

@@ -14,6 +14,11 @@ class SoftUI:
             selected=False; bg=c['bg']; fg=33808
         style=(cx,cy,radius,icon,selected,enabled)
         if self.cache.get('icon:'+key)==style: return
+        if icon in ('play','pause','next','prev'):
+            from visual_assets import player_commands
+            for command in player_commands(cx,cy,radius,icon,fg,bg,c['bg']): self.send(command)
+            self.cache['icon:'+key]=style
+            return
         self.send(f'cirs {cx},{cy},{radius},{bg}')
         if icon in ('plus','minus'):
             self.fill(cx-10,cy-2,21,4,fg)

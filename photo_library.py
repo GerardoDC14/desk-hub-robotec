@@ -15,7 +15,7 @@ import camera_tools as limits
 
 FILTERS = ('Original', 'B/N', 'Sepia', 'Negativo', 'Pop', 'Espejo', 'Boceto')
 PHOTO_NAME = re.compile(r'(?:foto|efecto)-[A-Za-z0-9][A-Za-z0-9_-]{0,95}\.jpg\Z')
-PREVIEW_SIZE = (96, 54)
+PREVIEW_SIZE = (128, 72)
 MAX_PREVIEWS = 8
 MAX_DECODE_PIXELS = 16_000_000
 
@@ -37,12 +37,13 @@ def apply_filter(image, name):
     return ImageOps.autocontrast(ImageOps.invert(edges)).convert('RGB')
 
 
-def preview_pixels(image, size=PREVIEW_SIZE, colors=96):
-    """Miniatura 16:9 de 96 colores, devuelta como píxeles RGB565 inmutables."""
+def preview_pixels(image, size=PREVIEW_SIZE, colors=192):
+    """Miniatura con paleta acotada, sin tramado artificial, en RGB565."""
     canvas = Image.new('RGB', size, (12, 18, 24))
     thumbnail = ImageOps.contain(image, size, Image.Resampling.LANCZOS)
     canvas.paste(thumbnail, ((canvas.width-thumbnail.width)//2, (canvas.height-thumbnail.height)//2))
-    canvas = canvas.quantize(colors=colors, method=Image.Quantize.MEDIANCUT).convert('RGB')
+    canvas = canvas.quantize(colors=colors, method=Image.Quantize.MEDIANCUT,
+                             dither=Image.Dither.NONE).convert('RGB')
     raw = canvas.tobytes()
     pixels = tuple(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
                    for r, g, b in zip(raw[::3], raw[1::3], raw[2::3]))
@@ -326,7 +327,7 @@ class PhotoLibrary:
             with self._cv:
                 if not self._valid_locked(job[3]): return
                 if key in self._thumbs: continue
-            try: pixels=preview_pixels(self._read_image(key),size=(48,27),colors=32)
+            try: pixels=preview_pixels(self._read_image(key),size=(64,36),colors=96)
             except (OSError, ValueError): pixels=None
             with self._cv:
                 if not self._valid_locked(job[3]): return

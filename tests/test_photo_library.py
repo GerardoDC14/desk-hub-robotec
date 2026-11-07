@@ -62,7 +62,7 @@ class FilterTests(unittest.TestCase):
     def test_preview_is_a_bounded_immutable_rgb565_grid(self):
         image = Image.new('RGB', (80, 160), (23, 180, 90))
         preview = preview_pixels(image)
-        self.assertEqual(preview[:2], (96, 54)); self.assertEqual(len(preview[2]), 96*54)
+        self.assertEqual(preview[:2], (128, 72)); self.assertEqual(len(preview[2]), 128*72)
         self.assertIsInstance(preview[2], tuple)
         self.assertTrue(all(0 <= value <= 65535 for value in preview[2]))
         self.assertLessEqual(len(set(preview[2])), 96)

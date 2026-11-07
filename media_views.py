@@ -1,6 +1,6 @@
 """Álbum visual, presentación privada y encuadre local de cámara."""
 import time
-from gallery_pixels import rect_image_commands, preview_passes
+from gallery_pixels import rect_image_commands, preview_passes, stable_pixels
 
 
 class MediaViews:
@@ -66,6 +66,7 @@ class MediaViews:
         if frame and self.art_key!=('live',ident) and not self.artwork:
             cols,rows,pixels=frame
             old=getattr(self,'_live_pixels',None) if self.art_key and self.art_key[0]=='live' else None
+            pixels=stable_pixels(pixels,old)
             self.media_art(rect_image_commands(pixels,cols,rows,32,104,528,297,old))
             self.art_key=('live',ident); self._live_pixels=pixels
             self._live_drawn=now
@@ -81,9 +82,9 @@ class MediaViews:
         message=state['status']
         if due: message='Prepárate / '+str(max(1,int(due-now)+1))
         elif waiting: message='Guardando tu foto…'
-        elif not live and not state['busy'] and not state['error']: message='Vista pausada · ninguna foto se guarda automáticamente'
+        elif not live and not state['busy'] and not state['error']: message='Vista pausada · no se guardan fotos automáticamente'
         self.text('livestatus',32,416,528,26,2,self.fit(message,528),c['mint'],c['bg'])
-        self.text('livehint',32,446,736,22,2,'Encuadre por intervalos · la foto se guarda a 1280 × 720',c['muted'],c['bg'])
+        self.text('livehint',32,446,736,22,2,'Vista local · la foto se guarda a 1280 × 720',c['muted'],c['bg'])
         if due and now>=due and not state['busy']:
             if camera.capture(unlocked=self.unlocked):
                 self._shot_due=None; self._shot_wait=(state['last_filename'],now)

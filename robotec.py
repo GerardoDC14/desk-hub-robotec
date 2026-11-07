@@ -33,6 +33,8 @@ from camera_tools import CameraController, CameraViews
 from photo_library import PhotoLibrary
 from gallery_views import GalleryViews
 from media_views import MediaViews
+from uart_speed import negotiate_speed
+from gallery_pixels import preview_passes
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -73,8 +75,10 @@ def image_pixels(url):
     req = urllib.request.Request(url,headers={'User-Agent':'DeskHubRobotec/2.0'})
     with urllib.request.urlopen(req,timeout=6) as r:
         raw = r.read(2_000_000)
-    im = Image.open(io.BytesIO(raw)).convert('RGB').resize((48,48), Image.Resampling.LANCZOS)
-    im = im.quantize(colors=96).convert('RGB')
+    with Image.open(io.BytesIO(raw)) as source:
+        if source.width*source.height>16_000_000: raise ValueError('Portada demasiado grande')
+        im = source.convert('RGB').resize((96,96), Image.Resampling.LANCZOS)
+    im = im.quantize(colors=192, dither=Image.Dither.NONE).convert('RGB')
     return [((r>>3)<<11)|((g>>2)<<5)|(b>>3) for r,g,b in im.getdata()]
 
 def image_commands(pixels,x,y,size,underlay=None):
@@ -290,7 +294,7 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
             self.ambient_since=time.monotonic()
         if self.screen=='viewfinder' and view!='viewfinder':
             if getattr(self,'camera',None): self.camera.stop_preview()
-            self._live_on=False; self._shot_due=None; self._shot_wait=None
+            self._live_on=False; self._shot_due=None; self._shot_wait=None; self._live_pixels=None
         self._show_due=None
         self.screen=view
         self.compact=(view=='away' and self.timer.data['mode']=='away' and (self.timer.data['deadline'] is not None or getattr(self,'away_pending',False))) or (view=='time' and (self.watch['started'] is not None if self.time_mode=='watch' else self.time_mode!='alarm' and self.timer.data['deadline'] is not None and self.timer.data['mode']!='away'))
@@ -447,11 +451,10 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
         self.fill(x,y,size,size,self.theme['button'])
         if data:
             pixels=data[1] if key=='music' else data
-            if key=='music' and len(pixels)==48*48:
-                coarse=[pixels[(row*4+2)*48+column*4+2] for row in range(12) for column in range(12)]
-                self.artwork.extend(image_commands(coarse,x,y,size))
-                underlay=[coarse[(row//4)*12+column//4] for row in range(48) for column in range(48)]
-                self.artwork.extend(image_commands(pixels,x,y,size,underlay))
+            if key=='music' and len(pixels) in (48*48,96*96):
+                grid=math.isqrt(len(pixels))
+                coarse,detail=preview_passes(pixels,grid,grid,x,y,size,size)
+                self.artwork.extend(coarse); self.artwork.extend(detail)
             else: self.artwork.extend(image_commands(pixels,x,y,size))
             self.art_started=time.monotonic(); self.art_total=len(self.artwork)
         else:
@@ -462,7 +465,8 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
         batch=[]; count=0
         while self.artwork:
             command=self.artwork[0]
-            if batch and count+len(command)+3>(220 if self.screen in ('gallery','gallery_grid','viewfinder','photo_show') else 256): break
+            budget=900 if getattr(getattr(self,'link',None),'max_batch',240)==960 else 220
+            if batch and count+len(command)+3>budget: break
             batch.append(self.artwork.popleft()); count+=len(command)+3
         self.send_batch(batch)
         if not self.artwork:
@@ -554,25 +558,18 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
             else: self.label('githubpending',248,90,528,90,n['github_detail'],0,INK,BG)
 
     def negotiate(self):
-        for speed in (self.termios.B115200,self.termios.B9600):
-            c=self.termios.tcgetattr(self.fd); c[4]=c[5]=speed
+        def set_rate(rate):
+            c=self.termios.tcgetattr(self.fd); c[4]=c[5]=getattr(self.termios,'B'+str(rate))
             self.termios.tcsetattr(self.fd,self.termios.TCSANOW,c)
             self.termios.tcflush(self.fd,self.termios.TCIOFLUSH)
-            self.send('')
-            self.send('sendme')
-            end=time.monotonic()+1
-            received=b''
-            while time.monotonic()<end:
-                r,_,_=select.select([self.fd],[],[],.1)
-                if r: received+=os.read(self.fd,4096)
-                if b'\x66\x00\xff\xff\xff' in received:
-                    if speed!=self.termios.B115200:
-                        self.send('baud=115200'); time.sleep(.15)
-                        c[4]=c[5]=self.termios.B115200
-                        self.termios.tcsetattr(self.fd,self.termios.TCSANOW,c)
-                    print('UART 115200 validado',flush=True)
-                    return
-        raise RuntimeError('Pantalla sin respuesta a 9600/115200')
+        target=getattr(self,'uart_target',int(os.environ.get('DESK_HUB_BAUD','921600')))
+        self.uart_baud=negotiate_speed(set_rate,self.send,self.receive_bytes,target)
+        print('UART',self.uart_baud,'validado',flush=True)
+
+    def display_failed(self):
+        self.uart_target=115200; self.link=None
+        self.lock_hub(); self.online=False; self.next_retry=time.monotonic()+1
+        print('UART: recuperando enlace a velocidad conservadora',flush=True)
 
     def run(self):
         while True:
@@ -581,7 +578,8 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
                     self.link=None
                     self.frames=Frames()
                     self.negotiate(); self.send('bkcmd=2'); self.send('page 0')
-                    self.link=NextionLink(self.write_packet,self.receive_bytes,self.frames)
+                    self.link=NextionLink(self.write_packet,self.receive_bytes,self.frames,
+                                          max_batch=960 if self.uart_baud==921600 else 240)
                     self.send('dim=100'); self.dim_value=None
                     self.send('sendme')
                     self.next_retry=time.monotonic()+3
@@ -591,7 +589,9 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
             self.poll_tools()
             frames=list(self.link.pending) if self.link else []
             if self.link: self.link.pending.clear()
-            frames.extend(self.frames.feed(self.receive_bytes(.005)))
+            # La barrera de cada lote ya espera al dispositivo y retiene los toques.
+            # No sumar una pausa artificial entre lotes de una imagen pendiente.
+            frames.extend(self.frames.feed(self.receive_bytes(0 if self.artwork else .005)))
             for frame in frames:
                 if frame==b'\x66\x00':
                     self.last_seen=time.monotonic()
@@ -602,11 +602,13 @@ class Robotec(IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, Ga
                 elif frame==b'\x88':
                     self.lock_hub(); self.online=False; self.next_retry=0
                 elif frame and frame[0] in (0,3,4,5,0x1a): print('UART error:',frame.hex(),flush=True)
-            if self.online and time.monotonic()-self.last_tick >= .10:
-                self.render(); self.last_tick=time.monotonic()
-            if self.online: self.flush_artwork()
-            if self.online and time.monotonic()>=self.next_heartbeat:
-                self.send('sendme'); self.next_heartbeat=time.monotonic()+2
+            try:
+                if self.online and time.monotonic()-self.last_tick >= .10:
+                    self.render(); self.last_tick=time.monotonic()
+                if self.online: self.flush_artwork()
+                if self.online and time.monotonic()>=self.next_heartbeat:
+                    self.send('sendme'); self.next_heartbeat=time.monotonic()+2
+            except (OSError,TimeoutError): self.display_failed()
             if self.online and time.monotonic()-self.last_seen>6:
                 self.lock_hub(); self.online=False; self.next_retry=0
 

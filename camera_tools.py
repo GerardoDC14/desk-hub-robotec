@@ -9,6 +9,7 @@ import time
 import uuid
 import io
 from PIL import Image
+from camera_preview import preview_command, read_mjpeg
 from font_metrics import text_width
 
 INTERVALS = (10, 30, 60)
@@ -38,13 +39,15 @@ class CameraController:
     ``lock()`` al bloquear el panel. Ninguna sesión se persiste ni se reanuda.
     """
     def __init__(self, directory, popen=subprocess.Popen, which=shutil.which,
-                 clock=time.monotonic, wall_clock=time.time):
+                 clock=time.monotonic, wall_clock=time.time, stream_reader=read_mjpeg):
         self.directory = Path(directory) / 'camera'
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         if self.directory.is_symlink():
             raise ValueError('La carpeta de cámara no puede ser un enlace.')
         os.chmod(self.directory, 0o700)
         self.executable = which('rpicam-still') or which('libcamera-still')
+        self.stream_executable = which('rpicam-vid') or which('libcamera-vid')
+        self._stream_reader=stream_reader
         self._popen = popen; self._clock = clock; self._wall_clock = wall_clock
         self._cv = threading.Condition(threading.RLock())
         self._closed = False; self._job = None; self._busy = False; self._process = None; self._editing = False
@@ -70,6 +73,7 @@ class CameraController:
                         requested=self._requested, last_filename=self._last_filename,
                         error=self._error, photo_count=files, storage_bytes=size,
                         preview=self._preview, preview_id=self._preview_id,
+                        streaming=self._kind=='preview' and bool(self.stream_executable),
                         next_seconds=max(0, int(self._next_due-self._clock())) if self._next_due else 0)
 
     def _usage(self):
@@ -184,6 +188,8 @@ class CameraController:
                     self._busy = False; self._process = None; self._kind = None; self._cv.notify_all()
 
     def _execute(self, kind, generation):
+        if kind=='preview' and self.stream_executable:
+            return self._execute_stream(generation)
         temporary = None
         try:
             with self._cv:
@@ -239,7 +245,7 @@ class CameraController:
                     if not output or len(output) > MAX_FILE_BYTES: raise ValueError('Encuadre vacío')
                     with Image.open(io.BytesIO(output)) as image:
                         if image.width*image.height > 1_000_000: raise ValueError('Encuadre inválido')
-                        self._preview = preview_pixels(image, size=(48,27), colors=32)
+                        self._preview = preview_pixels(image, size=(80,45), colors=128)
                     self._preview_id += 1; self._connected = True
                     self._status = 'Encuadre actualizado'
                     return
@@ -265,6 +271,28 @@ class CameraController:
                 try: temporary.unlink(missing_ok=True)
                 except OSError: pass
                 with self._cv: self._usage_cache = None
+
+    def _execute_stream(self, generation):
+        from photo_library import preview_pixels
+        def cancelled():
+            with self._cv: return self._closed or generation!=self._generation
+        with self._cv:
+            if cancelled(): return
+            process=self._popen(preview_command(self.stream_executable),stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL,bufsize=0,shell=False)
+            self._process=process
+        try:
+            for raw in self._stream_reader(process,cancelled):
+                if cancelled(): return
+                with Image.open(io.BytesIO(raw)) as image:
+                    if image.width*image.height>1_000_000: raise ValueError('Encuadre inválido')
+                    pixels=preview_pixels(image,size=(80,45),colors=128)
+                with self._cv:
+                    if cancelled(): return
+                    self._preview=pixels; self._preview_id+=1; self._connected=True
+                    self._status='Vista activa'
+        finally:
+            self._terminate(process)
 
     @staticmethod
     def _terminate(process):

@@ -22,7 +22,9 @@ class NextionLink:
     bkcmd=2 informa errores. La respuesta numérica de get sys0 confirma que
     Nextion consumió las instrucciones anteriores. Los toques se conservan.
     """
-    def __init__(self, write, receive, parser, clock=time.monotonic):
+    def __init__(self, write, receive, parser, clock=time.monotonic, max_batch=240):
+        if max_batch not in (240,960): raise ValueError('Tamaño de lote no admitido')
+        self.max_batch=max_batch
         self.write, self.receive, self.parser, self.clock = write, receive, parser, clock
         self.pending = deque()
 
@@ -36,7 +38,7 @@ class NextionLink:
         # También se cuentan los bytes de la barrera; mantener holgura de RX.
         batch = b''
         for packet in packets:
-            if len(batch)+len(packet)>240:
+            if len(batch)+len(packet)>self.max_batch:
                 self._flush(batch); batch=b''
             batch += packet
         if batch: self._flush(batch)

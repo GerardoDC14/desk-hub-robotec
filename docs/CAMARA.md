@@ -1,6 +1,6 @@
 # Cámara: fotos, timelapse y galería
 
-La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Estado → Cámara**. Incluye encuadre actualizado, álbum de miniaturas, presentación y copias con efectos. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
+La cámara permite tomar una foto manual o guardar una secuencia de fotos a intervalos desde **Estado → Cámara**. Incluye encuadre continuo local, álbum de miniaturas, presentación y copias con efectos. Las imágenes permanecen en la Pi. Para capturar necesitas el panel desbloqueado, una cámara CSI detectada y espacio libre; no hace falta conexión a internet.
 
 ## Conectar una cámara a la Pi 3 B
 
@@ -33,14 +33,18 @@ El último comando enumera sensores; no guarda una foto. Un módulo OV5647 debe 
 Vista reconstruida con una imagen sintética y tipografía aproximada.
 
 1. Desbloquea el Hub y abre **Estado → Cámara**.
-2. Pulsa **Activar cámara**. La imagen de encuadre se actualiza por intervalos; espera a que termine de dibujarse antes de ajustar de nuevo la posición. No se guardan fotos durante esta vista.
+2. Pulsa **Activar cámara**. La cámara permanece abierta y actualiza el encuadre sin guardar fotografías. Las zonas quietas se conservan; al mover la cámara, espera a que termine de dibujarse la nueva imagen.
 3. **Sin cuenta** cambia a **Cuenta: 3 s** si quieres un pequeño retardo antes de disparar. Pulsa otra vez para quitarlo.
 4. Pulsa **Tomar foto**. La vista se pausa, se completa la cuenta elegida y se guarda un JPEG de **1280 × 720 píxeles**. El Hub abre la foto en el visor para revisarla o aplicarle un efecto.
 5. **Álbum** vuelve a las miniaturas. Desde allí, **Cámara** permite preparar otra foto.
 
 **Pausar vista** conserva el último encuadre en pantalla y detiene las actualizaciones. La imagen en pausa no representa lo que ocurre en ese instante. Salir de Cámara detiene el encuadre, y volver requiere pulsar Activar cámara. El modo ambiental también interrumpe el encuadre; bloquear cancela cualquier captura pendiente y limpia los datos de vista previa.
 
-La cámara obtiene imágenes de 320 × 180 píxeles en memoria; el panel muestra una versión de 48 × 27 para reducir la transmisión serie. No es vídeo fluido: la cámara necesita aproximadamente 1–2 segundos por encuadre, a lo que se suma el dibujo en pantalla. Como referencia, el encuadre completo puede renovarse aproximadamente cada 3–5 segundos; el intervalo depende del detalle y de los cambios en la escena. Las fotos guardadas conservan una resolución mucho mayor. No se abre un servidor de imágenes ni se transmiten por la red.
+La cámara envía MJPEG de **320 × 180 a cuatro fotogramas por segundo** a un proceso local en memoria. La Nextion muestra una versión de **80 × 45 píxeles y hasta 128 colores**, conservando el encuadre más reciente y descartando los atrasados. La aplicación evita redibujar variaciones pequeñas de ruido respecto a la imagen ya mostrada. La velocidad visible depende de cuánto cambia la escena: una actualización pequeña puede terminar en una fracción de segundo; un cambio completo requiere aproximadamente dos segundos en el equipo de referencia. No equivale a vídeo fluido a pantalla completa.
+
+Si `rpicam-vid` no está instalado, se usa `rpicam-still` por encuadres individuales, con una actualización más lenta. Las herramientas oficiales se describen en la [guía de software de cámara de Raspberry Pi](https://www.raspberrypi.com/documentation/accessories/camera-software.html#rpicam-vid).
+
+El álbum usa miniaturas de **64 × 36**, y el visor y la presentación alcanzan **128 × 72**. Estas resoluciones pertenecen a la vista en pantalla: los JPEG guardados siguen siendo de **1280 × 720**. No se abre un servidor de imágenes ni se transmite la cámara por la red.
 
 Orienta la cámara al objeto o experimento que quieres registrar. En un laboratorio compartido, informa a las personas presentes antes de fotografiarlas y evita incluir documentos o pantallas ajenos al experimento.
 

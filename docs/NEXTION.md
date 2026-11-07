@@ -10,11 +10,19 @@ El TFT mide **463.552 bytes** y su SHA-256 es:
 4A6C20061794F2846FC709900DD85C4E477963F4BF54BD55B027616881A26F14
 ```
 
-El HMI incorpora las fuentes con IDs 0/1/2/3, de 32/64/16/128 píxeles. El arranque fija UART a 9600; Postinitialize oculta los componentes de diagnóstico, dibuja BLOQUEADO, activa `sendxy=1` y emite `sendme`. Su texto está en `robotec_page0.txt`. La Pi negocia 115200 durante la ejecución y dibuja las vistas sobre la misma page0.
+El HMI incorpora las fuentes con IDs 0/1/2/3, de 32/64/16/128 píxeles. El arranque fija UART a 9600; Postinitialize oculta los componentes de diagnóstico, dibuja BLOQUEADO, activa `sendxy=1` y emite `sendme`. Su texto está en `robotec_page0.txt`. La Pi negocia **921600 baudios** durante la ejecución y dibuja las vistas sobre la misma page0. Detecta también 9600, 115200 y 230400 para recuperarse de reinicios o de un cambio de velocidad. Solo usa `baud`, que es volátil; no modifica el ajuste persistente `bauds`.
 
 Las tarjetas redondeadas, los iconos meteorológicos nativos y el rediseño visual se generan desde Python y son compatibles con este mismo TFT. No necesitan volver a cargar firmware si las fuentes y el modelo permanecen iguales.
 
 Para editar, descarga [Nextion Editor oficial](https://nextion.tech/nextion-editor/), abre el HMI y conserva modelo y orientación. Compila, revisa errores y usa **File > TFT file output**. No renombres un HMI a TFT. Si cambias fuentes, IDs o resolución, adapta también Python.
+
+## Transporte y calidad de imagen
+
+El modo rápido agrupa hasta **960 bytes** de instrucciones más una barrera de ejecución de 11 bytes. Cada lote espera una respuesta del panel antes del siguiente; los eventos táctiles recibidos durante la espera se conservan. Los modos conservadores usan lotes de 240 bytes. No abras simultáneamente el puerto con otro programa.
+
+Si falla la confirmación de un lote durante el dibujo, el Hub bloquea el panel y reintenta el enlace a **115200**. Para mantener esa velocidad desde el arranque, configura `Environment=DESK_HUB_BAUD=115200` en un override de `desk-hub.service`, recarga systemd y reinicia el servicio. Se admiten 115200, 230400 y 921600. Un reinicio de la pantalla vuelve a la velocidad definida por el TFT y la aplicación la negocia otra vez.
+
+Las portadas de música se procesan a **96 × 96**, con hasta 192 colores; primero aparece una vista rápida y después el detalle. Los iconos de reproducción usan bordes suavizados a su tamaño nativo. El contenido cambia por regiones para mantener disponibles los controles táctiles. La resolución física del panel sigue siendo 800 × 480; la conexión UART limita el detalle y la frecuencia de las imágenes dinámicas.
 
 ## Cargar con microSD
 

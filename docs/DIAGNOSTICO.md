@@ -2,7 +2,7 @@
 
 ## La pantalla no responde
 
-Comprueba primero alimentación, GND común, TX/RX cruzados y existencia del puerto. Detén el servicio antes de abrir el puerto manualmente. El TFT arranca a 9600 y el panel lo cambia a 115200; reiniciar solo el servicio no reinicia la velocidad de Nextion.
+Comprueba primero alimentación, GND común, TX/RX cruzados y existencia del puerto. Detén el servicio antes de abrir el puerto manualmente. El TFT arranca a 9600 y el panel negocia hasta 921600 (o 115200 en recuperación); reiniciar solo el servicio no reinicia la velocidad de Nextion.
 
 ```sh
 ls -l /dev/serial/by-id/
