@@ -33,6 +33,14 @@ Después ejecuta `sudo systemctl daemon-reload` y `sudo systemctl restart desk-h
 
 La detección prueba dos veces cada velocidad antes de descartarla, para permitir que el terminador vacíe bytes incompletos de un sondeo anterior. La segunda consulta repite únicamente la identificación de página y no acciones del panel.
 
+## Actualización de imágenes
+
+Las imágenes se envían en lotes de hasta 240 bytes, con confirmación independiente de cada lote. El bucle agrupa como máximo cuatro lotes y cede al detectar un toque pendiente o alcanzar su presupuesto de 25 ms; una respuesta lenta puede alargar ese intervalo hasta el límite de espera del enlace. Se conservan la recuperación de errores y el bloqueo cuando se pierde la comunicación.
+
+Mientras permanece abierta la vista de Spotify, una portada completamente dibujada sirve de referencia para enviar únicamente los píxeles que cambian. Un cambio de página, geometría o un envío incompleto obliga a dibujarla de nuevo. Esto reduce el trabajo cuando las portadas coinciden total o parcialmente; la primera carga y las imágenes muy distintas siguen limitadas por el enlace serial.
+
+La vista de cámara solicita el siguiente encuadre cuando está terminando de enviar el actual. Evita convertir fotogramas que la pantalla no puede mostrar y mantiene un único encuadre pendiente, sin guardar imágenes automáticamente. Conserva resolución, paleta y calidad de las fotos. La velocidad visible depende del detalle y del movimiento de la escena; no equivale a una pantalla de vídeo conectada por HDMI.
+
 Las portadas de música se procesan a **96 × 96**, con hasta 192 colores; primero aparece una vista rápida y después el detalle. Los iconos de reproducción usan bordes suavizados a su tamaño nativo. El contenido cambia por regiones para mantener disponibles los controles táctiles. La resolución física del panel sigue siendo 800 × 480; la conexión UART limita el detalle y la frecuencia de las imágenes dinámicas.
 
 ## Cargar con microSD

@@ -38,7 +38,7 @@ from photo_library import PhotoLibrary
 from gallery_views import GalleryViews
 from media_views import MediaViews
 from uart_speed import negotiate_speed
-from gallery_pixels import preview_passes
+from gallery_pixels import preview_passes, rect_image_commands
 from audio_meter import OutputMeter
 
 def rgb(hexcolor):
@@ -482,29 +482,55 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
         with self.lock: data=self.images.get(key)
         ident=(key,data[0] if key=='music' and data else bool(data))
         if ident==self.art_key: return
+        painted=getattr(self,'_music_painted',None)
+        previous=(painted[2] if key=='music' and painted and painted[0]==self.art_key
+                  and painted[1]==(x,y,size) and not self.artwork else None)
         self.art_key=ident; self.artwork.clear()
-        self.fill(x,y,size,size,self.theme['button'])
+        self._music_target=None
         if data:
             pixels=data[1] if key=='music' else data
             if key=='music' and len(pixels) in (48*48,96*96):
                 grid=math.isqrt(len(pixels))
-                coarse,detail=preview_passes(pixels,grid,grid,x,y,size,size)
-                self.artwork.extend(coarse); self.artwork.extend(detail)
-            else: self.artwork.extend(image_commands(pixels,x,y,size))
+                if previous is not None and len(previous)==len(pixels):
+                    # Comparar con la portada CONFIRMADA, nunca con un envío parcial.
+                    commands=rect_image_commands(pixels,grid,grid,x,y,size,size,previous)
+                else:
+                    coarse,detail=preview_passes(pixels,grid,grid,x,y,size,size)
+                    commands=coarse+detail
+                    self.fill(x,y,size,size,self.theme['button'])
+                self._music_target=(ident,(x,y,size),tuple(pixels))
+                self.artwork.extend(commands)
+                if not commands:self._music_painted=self._music_target
+            else:
+                self.fill(x,y,size,size,self.theme['button'])
+                self.artwork.extend(image_commands(pixels,x,y,size))
             self.art_started=time.monotonic(); self.art_total=len(self.artwork)
         else:
+            self.fill(x,y,size,size,self.theme['button'])
             self.label('noart'+key,x,y,size,size,'ROBOTEC',0,self.theme['mint'],self.theme['button'],1)
 
     def flush_artwork(self):
         if not self.artwork: return
-        batch=[]; count=0
-        while self.artwork:
-            command=self.artwork[0]
-            budget=900 if getattr(getattr(self,'link',None),'max_batch',240)==960 else 220
-            if batch and count+len(command)+3>budget: break
-            batch.append(self.artwork.popleft()); count+=len(command)+3
-        self.send_batch(batch)
+        # Cada lote conserva su propia confirmación y el límite estable de 240 B.
+        # Agrupar unas pocas vueltas reduce trabajo del bucle sin relegar toques.
+        until=time.monotonic()+.025
+        for _ in range(4):
+            batch=[]; count=0
+            while self.artwork:
+                command=self.artwork[0]
+                budget=min(240,getattr(getattr(self,'link',None),'max_batch',240))
+                if batch and count+len(command)+3>budget: break
+                batch.append(self.artwork.popleft()); count+=len(command)+3
+            self.send_batch(batch)
+            if (not self.artwork or time.monotonic()>=until or
+                    getattr(getattr(self,'link',None),'pending',None)):break
+        if (self.screen=='viewfinder' and getattr(self,'_live_on',False) and
+                self.art_key and self.art_key[0]=='live' and len(self.artwork)<=120 and
+                getattr(self,'_live_requested_for',None)!=self.art_key):
+            self.camera.request_preview_frame(); self._live_requested_for=self.art_key
         if not self.artwork:
+            target=getattr(self,'_music_target',None)
+            if target and target[0]==self.art_key:self._music_painted=target
             print(f'Imagen: {self.art_total} comandos / {time.monotonic()-self.art_started:.2f} s',flush=True)
 
     @staticmethod

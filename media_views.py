@@ -73,6 +73,7 @@ class MediaViews:
             self.media_art(rect_image_commands(pixels,cols,rows,32,104,528,297,old))
             self.art_key=('live',ident); self._live_pixels=pixels
             self._live_drawn=now
+            if not self.artwork:camera.request_preview_frame()
         elif not frame and not self.art_key:
             self.paragraph('viewfinderhint',80,206,432,'Activa la cámara para encuadrar',2,0,bg=c['card'])
         self.soft_button('livecapture',584,104,184,76,
@@ -102,7 +103,7 @@ class MediaViews:
                 self.navigate('gallery'); return
         if live and not due and not waiting and not state['busy'] and not state['timelapse'] and not self.artwork:
             if now-getattr(self,'_live_request',0)>=1:
-                if camera.preview(unlocked=self.unlocked): self._live_request=now
+                if camera.preview(unlocked=self.unlocked,paced=True): self._live_request=now
 
     def draw_photo_show(self):
         c=self.theme; state=self.photos.snapshot(unlocked=self.unlocked)
@@ -171,7 +172,7 @@ class MediaViews:
             elif 196<=y<240 and not getattr(self,'_shot_due',None) and not getattr(self,'_shot_wait',None):
                 if getattr(self,'_live_on',False):
                     self._live_on=False; self.camera.stop_preview()
-                elif self.camera.preview(unlocked=True):
+                elif self.camera.preview(unlocked=True,paced=True):
                     self._live_on=True; self._live_request=time.monotonic()
             elif 254<=y<298:
                 self._shot_delay=0 if getattr(self,'_shot_delay',0) else 3

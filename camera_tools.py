@@ -110,9 +110,17 @@ class CameraController:
     def capture(self, unlocked=False):
         return self._enqueue('capture', unlocked)
 
-    def preview(self, unlocked=False):
+    def preview(self, unlocked=False, paced=False):
         """Solicita un encuadre en RAM, sin crear fotografías ni un servidor."""
-        return self._enqueue('preview', unlocked)
+        with self._cv:
+            accepted=self._enqueue('preview', unlocked)
+            if accepted:
+                self._preview_paced=bool(paced); self._preview_wanted=True
+            return accepted
+
+    def request_preview_frame(self):
+        """Permite preparar un único encuadre nuevo, nunca una cola de imágenes."""
+        with self._cv:self._preview_wanted=True
 
     def stop_preview(self):
         with self._cv:
@@ -302,6 +310,11 @@ class CameraController:
         try:
             for raw in self._stream_reader(process,cancelled):
                 if cancelled(): return
+                with self._cv:
+                    if cancelled():return
+                    self._latest_jpeg=raw
+                    if getattr(self,'_preview_paced',False) and not self._preview_wanted:continue
+                    self._preview_wanted=False
                 with Image.open(io.BytesIO(raw)) as image:
                     if image.width*image.height>1_000_000: raise ValueError('Encuadre inválido')
                     pixels=preview_pixels(image,size=(80,45),colors=128)
