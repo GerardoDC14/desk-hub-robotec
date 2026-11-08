@@ -40,6 +40,7 @@ from media_views import MediaViews
 from uart_speed import negotiate_speed
 from gallery_pixels import preview_passes, rect_image_commands
 from audio_meter import OutputMeter
+from lyrics import LyricsViews
 
 def rgb(hexcolor):
     r,g,b=bytes.fromhex(hexcolor)
@@ -113,7 +114,7 @@ def image_commands(pixels,x,y,size,underlay=None):
         if w>0 and h>0: commands.append(f'fill {x+xx},{y+yy},{w},{h},{color}')
     return commands
 
-class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
+class Robotec(LyricsViews, VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, FocusViews, LibraryViews, CameraViews, GalleryViews, MediaViews, Experience, EditorialViews, DashboardViews, MusicClient, SoftUI, Hub):
     decode_image=staticmethod(image_pixels)
     theme=dict(bg=BG,card=CARD,ink=INK,muted=MUTED,mint=MINT,lilac=LILAC,coral=CORAL,button=BUTTON,blue=BLUE,gold=GOLD)
     def __init__(self,port,directory):
@@ -314,6 +315,7 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
         return view not in ('sharing','phone','booth','activity')
 
     def navigate(self,view):
+        if view!='lyrics' and getattr(self,'lyrics',None): self.lyrics.cancel()
         if view!='music' and getattr(self,'output_meter',None): self.output_meter.set_enabled(False)
         if not self.authorized_view(view):view='home'
         self._photo_action=None; self._trash_item=None
@@ -405,6 +407,10 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
             self.navigate('music_options' if self.screen=='music' else 'music'); return
         if self.screen=='music' and 496<=x<616 and 12<=y<52:
             self.navigate('library'); return
+        if self.screen=='music' and 656<=x<768 and 58<=y<96:
+            self.navigate('lyrics'); return
+        if self.screen=='lyrics' and 632<=x<768 and 12<=y<52:
+            self.navigate('music'); return
         if self.screen in ('library','focus','camera') and 632<=x<768 and 12<=y<52:
             self.navigate({'library':'music','focus':'time','camera':'status'}[self.screen]); return
         if self.screen=='time' and not self.compact and 632<=x<768 and 12<=y<52:
@@ -599,6 +605,7 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
             self.draw_music(m)
         elif self.screen=='music_options':
             self.draw_music_options(m)
+        elif self.screen=='lyrics': self.draw_lyrics(m)
         elif self.screen=='focus': self.draw_focus()
         elif self.screen=='library': self.draw_library()
         elif self.screen=='camera': self.draw_camera()
@@ -746,6 +753,7 @@ if __name__=='__main__':
         try: hub.run()
         finally:
             hub.stop.set()
+            if getattr(hub,'lyrics',None): hub.lyrics.close()
             hub.output_meter.close()
             if hub.music_event_process and hub.music_event_process.poll() is None:
                 hub.music_event_process.terminate()

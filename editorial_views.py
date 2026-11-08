@@ -64,7 +64,7 @@ class EditorialViews:
             elif self.screen in ('music','music_options'):
                 self.soft_button('musicoptions',632,12,136,40,'Volver' if self.screen=='music_options' else 'Opciones')
                 if self.screen=='music': self.soft_button('libraryopen',496,12,120,40,'Guardadas')
-            elif self.screen in ('library','focus','camera'):
+            elif self.screen in ('library','focus','camera','lyrics'):
                 self.soft_button('subpageback',632,12,136,40,'Volver')
             elif self.screen=='time':
                 self.soft_button('timersopen',496,12,120,40,'Ver todos')
@@ -73,7 +73,7 @@ class EditorialViews:
             else: self.text('local',550,14,218,32,2,LOCATION,c['muted'],c['bg'],2)
             if self.screen=='status': self.soft_button('cameraopen',496,12,120,40,'Cámara')
             for i,(view,title) in enumerate(TABS):
-                selected=view==self.screen or (view=='music' and self.screen in ('music_options','library')) or (view=='time' and self.screen=='focus')
+                selected=view==self.screen or (view=='music' and self.screen in ('music_options','library','lyrics')) or (view=='time' and self.screen=='focus')
                 left,right=tab_bounds(i)
                 if selected:
                     self.panel('navpill'+view,left+6,430,right-left-12,46,c['card'],18)
@@ -199,7 +199,8 @@ class EditorialViews:
     def draw_music(self,music):
         c=self.theme; self.art('music',32,72,344)
         ready=control_ready(music); active=ready and music['status']=='playing'
-        self.text('playing',416,72,352,24,2,self.fit(self.music_label(music),352),c['mint'],c['bg'])
+        self.text('playing',416,72,232,24,2,self.fit(self.music_label(music),232),c['mint'],c['bg'])
+        self.soft_button('lyricsopen',656,58,112,38,'Letras')
         title=music['title']; big=self.text_width(title,1)<=352
         if self.cache.get('titlelayout')!=big:
             self.fill(416,96,352,80,c['bg'])
