@@ -192,7 +192,7 @@ class MusicClient:
             with self.lock: ready=control_ready(self.music)
             next_poll=time.monotonic()+(15 if self.music_stream_online and ready else 1)
         if (not self.stop.is_set() and self.music_commands.empty()
-                and self.screen in ('music','music_options') and time.monotonic()>=next_queue):
+                and self.screen in ('music','music_options','lyrics','ambient') and time.monotonic()>=next_queue):
             with self.lock:
                 token=getattr(self,'music_revision',0); session=getattr(self,'music_session',0)
             result=subprocess.run([SOLOIST,'ctl','-w','127.0.0.1:9090','queue','1','--json'],timeout=1,capture_output=True,check=True)
@@ -227,7 +227,7 @@ class MusicClient:
         with self.lock:
             cover=self.music.get('next_cover')
             session=getattr(self,'music_session',0)
-            if (not self.unlocked or self.screen not in ('home','music','music_options')
+            if (not self.unlocked or self.screen not in ('home','music','music_options','lyrics','ambient')
                     or not cover or cover in self.cover_cache or self.artwork
                     or self.music.get('cover') not in self.cover_cache): return False
             attempt=getattr(self,'_prefetch_attempt',None)

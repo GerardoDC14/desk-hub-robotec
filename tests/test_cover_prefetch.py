@@ -56,6 +56,11 @@ class CoverPrefetchTests(unittest.TestCase):
                 app.decode_image=lambda *a,**kw: self.fail('optional download started')
                 self.assertFalse(app.prefetch_cover())
 
+    def test_lyrics_and_ambient_keep_next_cover_preparation(self):
+        for screen in ('lyrics','ambient'):
+            app=self.app();app.screen=screen;app.decode_image=lambda *a,**kw:[2]*9216
+            self.assertTrue(app.prefetch_cover());self.assertIn('next',app.cover_cache)
+
     def test_failure_backs_off_but_current_request_is_not_blocked(self):
         app=self.app(); calls=[]
         def fail(*a,**kw): calls.append(1); raise TimeoutError()

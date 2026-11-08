@@ -134,22 +134,62 @@ class LyricsClient:
 
 
 class LyricsViews:
+    def lyrics_result(self,music):
+        if not getattr(self,'lyrics',None) and not str(music.get('uri','')).startswith('spotify:track:'):
+            return Lyrics('empty')
+        if not getattr(self,'lyrics',None):self.lyrics=LyricsClient()
+        return self.lyrics.request(music,getattr(self,'music_session',0))
+
+    def music_controls(self,music,ambient=False):
+        from music_state import control_ready
+        ready=control_ready(music)
+        for action,x,y,r in self.music_control_bounds(ambient):
+            icon=('pause' if music.get('status')=='playing' else 'play') if action=='toggle' else action
+            self.icon_button('lyricscontrol'+action,x,y,r,icon,action=='toggle' and ready,ready)
+
+    @staticmethod
+    def music_control_bounds(ambient=False):
+        return (('prev',528,348,22),('toggle',608,348,26),('next',688,348,22)) if ambient else (
+            ('prev',408,374,26),('toggle',552,374,32),('next',696,374,26))
+
+    def touch_music_controls(self,x,y,ambient=False):
+        for action,cx,cy,r in self.music_control_bounds(ambient):
+            if (x-cx)**2+(y-cy)**2<=(r+2)**2:
+                with self.lock: playing=self.music.get('status')=='playing'
+                self.queue_music(['pause' if playing else 'play'] if action=='toggle' else [action])
+                return True
+        return False
+
     def draw_lyrics(self,music):
         from music_state import position_ms
         c=self.theme
-        if not getattr(self,'lyrics',None):self.lyrics=LyricsClient()
-        result=self.lyrics.request(music,getattr(self,'music_session',0))
-        self.text('lyricstitle',32,72,736,44,0,self.fit(music.get('title',''),736,0),c['ink'],c['bg'])
-        self.text('lyricsartist',32,119,736,30,2,self.fit(music.get('artist',''),736),c['muted'],c['bg'])
+        result=self.lyrics_result(music)
+        self.art('music',32,80,240)
+        self.paragraph('lyricstitle',32,332,240,music.get('title',''),2,2,color=c['ink'])
+        self.text('lyricsartist',32,388,240,26,2,self.fit(music.get('artist',''),240),c['muted'],c['bg'])
         messages={'empty':'Reproduce una canción para ver su letra','loading':'Buscando letra sincronizada…',
             'missing':'No hay letra disponible para esta versión','instrumental':'Esta canción es instrumental',
             'unsynced':'Esta versión no tiene letra sincronizada','unavailable':'No se pudo consultar la letra. Se reintentará.',
             'limited':'El servicio está ocupado. Se reintentará.'}
         rows=three_lines(result,position_ms(music)) if result.status=='synced' else ('',messages.get(result.status,''),'')
-        self.panel('lyricsfocus',32,236,736,64,c['card'],18)
+        self.panel('lyricsfocus',296,168,472,64,c['card'],18)
         for i,value in enumerate(rows):
-            font=0 if self.text_width(value,0)<=696 else 2
-            self.text('lyricsline'+str(i),52,164+i*72,696,60,font,self.fit(value,696,font),
+            font=0 if self.text_width(value,0)<=440 else 2
+            self.text('lyricsline'+str(i),312,96+i*72,440,60,font,self.fit(value,440,font),
                       c['mint'] if i==1 else c['muted'],c['card'] if i==1 else c['bg'],1)
+        self.music_controls(music)
         status=('Sigue la reproducción en el Hub' if not music.get('is_active') else 'En pausa' if music.get('status')!='playing' else 'Sincronizada por frase')
-        self.text('lyricssource',32,390,736,28,2,'LRCLIB · '+status if result.status=='synced' else 'Letras: LRCLIB',c['muted'],c['bg'],1)
+        self.text('lyricssource',296,310,472,28,2,self.fit('LRCLIB · '+status if result.status=='synced' else 'Letras: LRCLIB',472),c['muted'],c['bg'],1)
+
+    def ambient_lyrics(self,music):
+        from music_state import position_ms
+        if not music.get('is_active'):
+            if getattr(self,'lyrics',None): self.lyrics.cancel()
+            return ''
+        result=self.lyrics_result(music)
+        if result.status=='synced':
+            current=three_lines(result,position_ms(music))[1]
+            return current or 'Música · LRCLIB'
+        return {'loading':'Buscando letra · LRCLIB','instrumental':'Instrumental',
+                'unsynced':'Letra sin sincronización','missing':'Letra no disponible',
+                'unavailable':'Letra no disponible por ahora','limited':'Letras en espera'}.get(result.status,'')

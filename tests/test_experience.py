@@ -87,7 +87,7 @@ class ExperienceTests(unittest.TestCase):
         value=hub(); value.screen='ambient'; value.ambient_return='music'
         value.touch(654,319)
         self.assertEqual(value.screen,'music'); self.assertTrue(value.music_commands.empty())
-        value.screen='ambient'; value.last_touch=0; value.touch(608,399)
+        value.screen='ambient'; value.last_touch=0; value.touch(608,348)
         self.assertEqual(value.screen,'ambient'); self.assertEqual(value.music_commands.get_nowait()['command'],['play'])
 
     def digit(self,value,key):

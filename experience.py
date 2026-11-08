@@ -140,9 +140,7 @@ class Experience:
     def touch_experience(self,x,y):
         self.last_activity=time.monotonic()
         if self.screen=='ambient':
-            if (x-608)**2+(y-399)**2<=28**2:
-                with self.lock: playing=self.music.get('status')=='playing'
-                self.queue_music(['pause' if playing else 'play']); return True
+            if self.touch_music_controls(x,y,ambient=True):return True
             self.navigate(getattr(self,'ambient_return','home')); return True
         if self.screen=='duration':
             if 416<=y<460 and 32<=x<362:
@@ -191,14 +189,18 @@ class Experience:
         return False
 
     def draw_ambient(self,now,music):
-        c=self.theme; self.art('music',488,120,240)
-        self.text('ambientdate',40,66,400,40,0,now.strftime('%d / %m'),c['muted'],c['bg'])
-        self.digital('ambientclock',24,120,412,152,now.strftime('%H:%M'),3,c['ink'],c['bg'])
-        self.paragraph('ambienttitle',40,292,392,music['title'] if music.get('is_active') else 'Tu espacio. A tu ritmo.',2,0)
+        c=self.theme; self.art('music',488,72,240)
+        self.text('ambientdate',40,40,400,40,0,now.strftime('%d / %m'),c['muted'],c['bg'])
+        self.digital('ambientclock',24,96,412,152,now.strftime('%H:%M'),3,c['ink'],c['bg'])
+        self.text('ambienttitle',40,266,392,46,0,self.fit(music['title'] if music.get('is_active') else 'Tu espacio. A tu ritmo.',392,0),c['ink'],c['bg'])
         activity,label=self.home_activity()
-        self.text('ambientartist',40,381,392,30,2,self.fit(label if activity else music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
+        self.text('ambientartist',40,320,392,32,2,self.fit(label if activity else music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
+        phrase=self.ambient_lyrics(music)
+        self.text('ambientlyricssource',488,30,240,26,2,'Letras · LRCLIB' if music.get('is_active') else '',c['muted'],c['bg'],1)
+        font=0 if self.text_width(phrase,0)<=720 else 2
+        self.text('ambientlyrics',40,382,720,40,font,self.fit(phrase,720,font),c['mint'],c['bg'],1)
         self.text('ambienthint',40,436,688,28,2,self.ambient_footer(),c['muted'],c['bg'],1)
-        self.icon_button('ambienttoggle',608,399,26,'pause' if music.get('status')=='playing' else 'play',True)
+        self.music_controls(music,ambient=True)
 
     def draw_status(self):
         c=self.theme; info=getattr(self,'system_info',{}); music=self.music

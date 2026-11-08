@@ -315,11 +315,11 @@ class Robotec(LyricsViews, VideoViews, NotionViews, TimerViews, IdleControl, Fri
         return view not in ('sharing','phone','booth','activity')
 
     def navigate(self,view):
-        if view!='lyrics' and getattr(self,'lyrics',None): self.lyrics.cancel()
         if view!='music' and getattr(self,'output_meter',None): self.output_meter.set_enabled(False)
         if not self.authorized_view(view):view='home'
         self._photo_action=None; self._trash_item=None
         if not self.unlocked and view not in ('lock','away','help'): view='lock'
+        if view not in ('lyrics','ambient') and getattr(self,'lyrics',None): self.lyrics.cancel()
         if view=='ambient' and self.screen!='ambient' and self.ambient_since is None:
             self.ambient_since=time.monotonic()
         if self.screen=='viewfinder' and view!='viewfinder':
@@ -438,6 +438,7 @@ class Robotec(LyricsViews, VideoViews, NotionViews, TimerViews, IdleControl, Fri
             if 32<=x<396 and 374<=y<424: self.navigate('music')
         elif self.screen=='focus': self.touch_focus(x,y)
         elif self.screen=='library': self.touch_library(x,y)
+        elif self.screen=='lyrics': self.touch_music_controls(x,y)
         elif self.screen=='camera': self.touch_camera(x,y)
         elif self.screen=='time':
             self.touch_time(x,y)

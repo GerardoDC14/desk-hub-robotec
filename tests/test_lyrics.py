@@ -1,4 +1,5 @@
 import io
+import datetime as dt
 import json
 import threading
 import time
@@ -108,6 +109,48 @@ class LyricsTests(unittest.TestCase):
         app.last_touch=0; app.touch(700,32); self.assertEqual(app.screen,'music')
         app.screen='lyrics'; app.last_touch=0; app.touch(40,450); self.assertEqual(app.screen,'home')
         app.unlocked=False; app.navigate('lyrics'); self.assertEqual(app.screen,'lock')
+
+    def test_controls_in_both_views_keep_view_and_respect_readiness(self):
+        for view in ('lyrics','ambient'):
+            app=hub(); app.screen=view
+            for action,x,y,r in app.music_control_bounds(view=='ambient'):
+                app.last_touch=0;app.touch(x,y)
+                self.assertEqual(app.music_commands.get_nowait()['command'],['play' if action=='toggle' else action])
+                self.assertEqual(app.screen,view)
+            app.music['status']='playing';app.last_touch=0
+            app.touch(608,348) if view=='ambient' else app.touch(552,374)
+            self.assertEqual(app.music_commands.get_nowait()['command'],['pause'])
+            app.music['_ready']=False;app.last_touch=0
+            app.touch(688,348) if view=='ambient' else app.touch(696,374)
+            self.assertTrue(app.music_commands.empty());self.assertEqual(app.screen,view)
+
+    def test_ambient_only_current_phrase_updates_and_return_preserves_request(self):
+        app=hub(); app.screen='ambient';app.music.update(SONG)
+        app.music.update(status='paused',position={'position_ms':1500,'speed':0})
+        result=parse_lrc(LRC,60000); cancelled=[]
+        class Client:
+            def request(self,*a):return result
+            def cancel(self):cancelled.append(True)
+        app.lyrics=Client();sent=[];app.send=sent.append
+        now=dt.datetime(2026,11,8,13,0)
+        app.draw_ambient(now,app.music);sent.clear()
+        app.draw_ambient(now,app.music);self.assertEqual(sent,[])
+        app.music['position']['position_ms']=4000;app.draw_ambient(now,app.music)
+        self.assertEqual(len(sent),1);self.assertTrue(sent[0].startswith('xstr 40,382,'))
+        app.navigate('lyrics');app.navigate('ambient');self.assertEqual(cancelled,[])
+        app.navigate('home');self.assertEqual(len(cancelled),1)
+
+    def test_cover_and_controls_regions_do_not_cover_three_lines(self):
+        app=hub(); app.screen='lyrics';app.music.update(SONG)
+        app.lyrics=type('Client',(),{'request':lambda *a:parse_lrc(LRC,60000)})()
+        app.images['music']=('cover',[123]*9216)
+        sent=[];app.send=sent.append;app.draw_lyrics(app.music)
+        rows=[c for c in sent if c.startswith('xstr 312,')]
+        self.assertEqual(len(rows),3)
+        for row in rows:
+            x,y,w,h=map(int,row.split(' ',1)[1].split(',')[:4])
+            self.assertGreaterEqual(x,272);self.assertLessEqual(y+h,304)
+        self.assertTrue(app.artwork)
 
 
 if __name__=='__main__':unittest.main()
