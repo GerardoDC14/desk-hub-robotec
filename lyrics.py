@@ -134,6 +134,20 @@ class LyricsClient:
 
 
 class LyricsViews:
+    def ambient_phrase_lines(self,phrase):
+        from nextion_link import safe_text
+        words=safe_text(phrase).split()
+        lines=[]; current=''
+        for word in words:
+            candidate=(current+' '+word).strip()
+            if current and self.text_width(candidate,0)>720:
+                lines.append(current);current=word
+            else:current=candidate
+        if current:lines.append(current)
+        if len(lines)>2:
+            lines[1]=self.fit(lines[1]+' ...',720,0)
+        return tuple(self.fit(line,720,0) for line in lines[:2])
+
     def lyrics_result(self,music):
         if not getattr(self,'lyrics',None) and not str(music.get('uri','')).startswith('spotify:track:'):
             return Lyrics('empty')
@@ -178,8 +192,6 @@ class LyricsViews:
             self.text('lyricsline'+str(i),312,96+i*72,440,60,font,self.fit(value,440,font),
                       c['mint'] if i==1 else c['muted'],c['card'] if i==1 else c['bg'],1)
         self.music_controls(music)
-        status=('Sigue la reproducción en el Hub' if not music.get('is_active') else 'En pausa' if music.get('status')!='playing' else 'Sincronizada por frase')
-        self.text('lyricssource',296,310,472,28,2,self.fit('LRCLIB · '+status if result.status=='synced' else 'Letras: LRCLIB',472),c['muted'],c['bg'],1)
 
     def ambient_lyrics(self,music):
         from music_state import position_ms

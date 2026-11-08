@@ -196,10 +196,15 @@ class Experience:
         activity,label=self.home_activity()
         self.text('ambientartist',40,320,392,32,2,self.fit(label if activity else music['artist'] if music.get('is_active') else 'Desk Hub Robotec',392),c['muted'],c['bg'])
         phrase=self.ambient_lyrics(music)
-        self.text('ambientlyricssource',488,30,240,26,2,'Letras · LRCLIB' if music.get('is_active') else '',c['muted'],c['bg'],1)
-        font=0 if self.text_width(phrase,0)<=720 else 2
-        self.text('ambientlyrics',40,382,720,40,font,self.fit(phrase,720,font),c['mint'],c['bg'],1)
-        self.text('ambienthint',40,436,688,28,2,self.ambient_footer(),c['muted'],c['bg'],1)
+        lines=self.ambient_phrase_lines(phrase)
+        if self.cache.get('ambientlyricslayout')!=len(lines):
+            self.fill(40,374,720,80,c['bg'])
+            for key in ('ambientlyrics0','ambientlyrics1'):self.cache.pop(key,None)
+            self.cache['ambientlyricslayout']=len(lines)
+        top=390 if len(lines)<=1 else 374
+        for index in range(2):
+            self.text('ambientlyrics'+str(index),40,top+index*40,720,40,0,
+                      lines[index] if index<len(lines) else '',c['mint'],c['bg'],1)
         self.music_controls(music,ambient=True)
 
     def draw_status(self):

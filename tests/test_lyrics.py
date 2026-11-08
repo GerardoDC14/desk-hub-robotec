@@ -136,7 +136,7 @@ class LyricsTests(unittest.TestCase):
         app.draw_ambient(now,app.music);sent.clear()
         app.draw_ambient(now,app.music);self.assertEqual(sent,[])
         app.music['position']['position_ms']=4000;app.draw_ambient(now,app.music)
-        self.assertEqual(len(sent),1);self.assertTrue(sent[0].startswith('xstr 40,382,'))
+        self.assertEqual(len(sent),1);self.assertTrue(sent[0].startswith('xstr 40,390,'))
         app.navigate('lyrics');app.navigate('ambient');self.assertEqual(cancelled,[])
         app.navigate('home');self.assertEqual(len(cancelled),1)
 
@@ -151,6 +151,24 @@ class LyricsTests(unittest.TestCase):
             x,y,w,h=map(int,row.split(' ',1)[1].split(',')[:4])
             self.assertGreaterEqual(x,272);self.assertLessEqual(y+h,304)
         self.assertTrue(app.artwork)
+
+    def test_ambient_long_phrase_wraps_without_changing_font_or_overlapping_controls(self):
+        app=hub();app.screen='ambient';app.music.update(SONG)
+        app.music.update(status='paused',position={'position_ms':2000,'speed':0})
+        long='En el laboratorio los proyectos avanzan a su propio ritmo y cada paso abre una idea nueva'
+        result=parse_lrc('[00:01]'+long,60000)
+        answer=[result]
+        app.lyrics=type('Client',(),{'request':lambda *a:answer[0]})()
+        sent=[];app.send=sent.append
+        app.draw_ambient(dt.datetime(2026,11,8,14,1),app.music)
+        rows=[c for c in sent if c.startswith('xstr 40,374,') or c.startswith('xstr 40,414,')]
+        self.assertEqual(len(rows),2)
+        self.assertTrue(all(row.split(',')[4]=='0' for row in rows))
+        self.assertFalse(any('LRCLIB' in c or 'Toca para volver' in c for c in sent))
+        sent.clear();answer[0]=parse_lrc('[00:01]Frase corta',60000)
+        app.draw_ambient(dt.datetime(2026,11,8,14,1),app.music)
+        self.assertIn(f"fill 40,374,720,80,{app.theme['bg']}",sent)
+        self.assertTrue(any(c.startswith('xstr 40,390,') for c in sent))
 
 
 if __name__=='__main__':unittest.main()
