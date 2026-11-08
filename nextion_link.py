@@ -5,6 +5,16 @@ import unicodedata
 
 END = b'\xff\xff\xff'
 ERRORS = {0x00,0x02,0x03,0x04,0x05,0x11,0x12,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20,0x23,0x24}
+# Sólo se repiten operaciones de dibujo: nunca páginas, ajustes ni acciones.
+REPLAYABLE_DRAWING = {b'fill',b'xstr',b'cirs',b'cir',b'line',b'draw',b'cls'}
+
+
+def drawing_summary(batch):
+    """Diagnóstico sin títulos, texto de tareas, PIN ni píxeles de fotografías."""
+    commands=batch.split(END)[:-1]
+    operations=sorted({c.partition(b' ')[0] for c in commands})
+    names=','.join(op.decode('ascii','replace') if op in REPLAYABLE_DRAWING else 'otra' for op in operations)
+    return f'operaciones={names}; instrucciones={len(commands)}; bytes={len(batch)}'
 
 
 def safe_text(value, limit=160):
@@ -45,7 +55,7 @@ class NextionLink:
             batch += packet
         if batch: self._flush(batch)
 
-    def _flush(self, batch):
+    def _flush(self, batch, allow_replay=True):
         if not batch: return
         self.write(batch+b'get sys0'+END)
         deadline = self.clock()+1.5
@@ -54,12 +64,26 @@ class NextionLink:
             raw = self.receive(min(.05,max(0,deadline-self.clock())))
             confirmed=False
             for frame in self.parser.feed(raw):
+                if frame in (b'\x88',b'\x00\x00\x00'):
+                    raise OSError('Nextion reiniciada durante el dibujo')
                 if len(frame)==1 and frame[0] in ERRORS: errors.append(frame[0])
                 elif len(frame)==5 and frame[0]==0x71:
                     confirmed=True
                 else: self.pending.append(frame)
             if confirmed:
-                if errors: raise OSError('Nextion rechazó dibujo: '+','.join(f'{e:02x}' for e in errors))
+                if errors:
+                    codes=','.join(f'{e:02x}' for e in errors)
+                    commands=batch.split(END)[:-1]
+                    if (allow_replay and set(errors)<={0x1e,0x24} and
+                            all(c.partition(b' ')[0] in REPLAYABLE_DRAWING for c in commands)):
+                        # La barrera llegó: el lote terminó, pero parte del dibujo
+                        # fue rechazado. Rehacerlo una sola vez, orden por orden.
+                        # Un timeout, reinicio o segundo rechazo se propaga.
+                        self.max_batch=240
+                        for command in commands: self._flush(command+END,allow_replay=False)
+                        print(f'UART: dibujo recuperado; codigos={codes}; {drawing_summary(batch)}',flush=True)
+                        return
+                    raise OSError('Nextion rechazó dibujo: '+codes+'; '+drawing_summary(batch))
                 self.last_confirmed = self.clock()
                 return
         raise TimeoutError('Nextion no confirmó el lote de dibujo')

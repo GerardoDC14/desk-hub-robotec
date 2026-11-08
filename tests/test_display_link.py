@@ -43,9 +43,37 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(sum(p.count(b'fill ') for p in self.packets),50)
 
     def test_error_is_not_silently_cached_as_success(self):
-        link=self.link([b'\x24'+END+bytes.fromhex('7100000000')+END])
+        link=self.link([b'\x24'+END+bytes.fromhex('7100000000')+END]*2)
         with self.assertRaisesRegex(OSError,'24'): link.send(['fill 0,0,1,1,0'])
         self.assertIsNone(link.last_confirmed)
+
+    def test_confirmed_transient_drawing_rejection_replays_once_in_order(self):
+        fence=bytes.fromhex('7100000000')+END
+        touch=bytes.fromhex('670100010000')
+        link=self.link([b'\x1e'+END+fence,touch+END+fence,fence])
+        commands=['fill 0,0,1,1,0','xstr 0,0,100,20,0,65535,0,0,0,1,"Privado"']
+        with patch('builtins.print') as log: link.send(commands)
+        self.assertEqual(len(self.packets),3)
+        for packet,command in zip(self.packets[1:],commands):
+            self.assertEqual(packet,command.encode()+END+b'get sys0'+END)
+        self.assertEqual(list(link.pending),[touch]); self.assertEqual(link.last_confirmed,self.clock)
+        self.assertNotIn('Privado',str(log.call_args));self.assertIn('dibujo recuperado',str(log.call_args))
+
+    def test_actions_and_unconfirmed_drawings_are_never_replayed(self):
+        fence=bytes.fromhex('7100000000')+END
+        for commands,replies in [(['page 0'],[b'\x1e'+END+fence]),
+                                 (['fill 0,0,1,1,0','dim=100'],[b'\x24'+END+fence]),
+                                 (['fill 0,0,1,1,0'],[b'\x1e'+END])]:
+            link=self.link(replies)
+            with self.assertRaises(OSError):link.send(commands)
+            self.assertEqual(len(self.packets),1)
+
+    def test_panel_reset_with_barrier_is_not_accepted_or_replayed(self):
+        fence=bytes.fromhex('7100000000')+END
+        for reset in (b'\x88',b'\0\0\0'):
+            link=self.link([reset+END+fence])
+            with self.assertRaisesRegex(OSError,'reiniciada'):link.send(['fill 0,0,1,1,0'])
+            self.assertEqual(len(self.packets),1);self.assertIsNone(link.last_confirmed)
 
     def test_unconfirmed_lot_times_out(self):
         link=self.link([])

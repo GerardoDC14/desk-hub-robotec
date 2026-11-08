@@ -637,8 +637,8 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
                     self.link=None
                     self.frames=Frames()
                     self.negotiate(); self.send('bkcmd=2'); self.send('page 0')
-                    self.link=NextionLink(self.write_packet,self.receive_bytes,self.frames,
-                                          max_batch=960 if self.uart_baud==921600 else 240)
+                    # Mantener margen de recepción incluso a máxima velocidad.
+                    self.link=NextionLink(self.write_packet,self.receive_bytes,self.frames,max_batch=240)
                     self.send('dim=100'); self.dim_value=None
                     self.send('sendme')
                     self.next_retry=time.monotonic()+3
