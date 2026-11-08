@@ -17,6 +17,7 @@ class MusicClient:
             self.music_pending=None
             self.music_session=getattr(self,'music_session',0)+1
             self.music.update(is_active=False,logged_in=False,_ready=False,_epoch=self.music.get('_epoch',0)+1)
+            self.music['next_cover']=None
             self.music_stream_online=False
         while not self.music_commands.empty():
             try: self.music_commands.get_nowait()
@@ -105,6 +106,7 @@ class MusicClient:
             if cover != previous:
                 self.images.pop('music',None)
             if cover and cover in self.cover_cache:
+                if cover != previous: print('Portada disponible en memoria',flush=True)
                 self.images['music'] = (cover,self.cover_cache[cover])
                 self.cover_cache.move_to_end(cover)
                 self.cover_requested = None
@@ -115,10 +117,10 @@ class MusicClient:
             if cover == self.cover_requested:
                 return
             self.cover_requested = cover
-        while not self.image_jobs.empty():
-            try: self.image_jobs.get_nowait()
-            except queue.Empty: break
-        self.image_jobs.put(cover)
+            while not self.image_jobs.empty():
+                try: self.image_jobs.get_nowait()
+                except queue.Empty: break
+            self.image_jobs.put(cover)
 
     def music_events(self):
         self.ready.wait()
@@ -205,6 +207,9 @@ class MusicClient:
             except queue.Empty: continue
             with self.lock:
                 if cover != self.music.get('cover'): continue
+                if cover in self.cover_cache:
+                    self.images['music']=(cover,self.cover_cache[cover])
+                    continue
             try:
                 pixels = self.decode_image(cover)
                 with self.lock:
@@ -216,3 +221,40 @@ class MusicClient:
                 with self.lock:
                     if self.cover_requested == cover: self.cover_requested = None
                 print('Portada:',type(error).__name__,flush=True)
+
+    def prefetch_cover(self):
+        """Una sola portada futura, sin escribir en UART ni ocupar el trabajador actual."""
+        with self.lock:
+            cover=self.music.get('next_cover')
+            session=getattr(self,'music_session',0)
+            if (not self.unlocked or self.screen not in ('home','music','music_options')
+                    or not cover or cover in self.cover_cache or self.artwork
+                    or self.music.get('cover') not in self.cover_cache): return False
+            attempt=getattr(self,'_prefetch_attempt',None)
+            if attempt and attempt[:2]==(session,cover) and time.monotonic()-attempt[2]<30: return False
+        camera=getattr(self,'camera',None)
+        if camera:
+            state=camera.snapshot()
+            if state['busy'] or state['timelapse']: return False
+        with self.lock:
+            if not self.unlocked or session!=getattr(self,'music_session',0): return False
+            self._prefetch_attempt=(session,cover,time.monotonic())
+        try:
+            pixels=self.decode_image(cover,timeout=2)
+        except Exception:
+            return False  # La descarga normal sigue disponible si la anticipación falla.
+        with self.lock:
+            if (not self.unlocked or session!=getattr(self,'music_session',0)
+                    or cover not in (self.music.get('next_cover'),self.music.get('cover'))): return False
+            self.cover_cache[cover]=pixels
+            self.cover_cache.move_to_end(cover)
+            while len(self.cover_cache)>8: self.cover_cache.popitem(last=False)
+            if self.music.get('cover')==cover: self.images['music']=(cover,pixels)
+        print('Portada siguiente preparada',flush=True)
+        return True
+
+    def cover_prefetch_worker(self):
+        while not self.stop.wait(.5):
+            try: self.prefetch_cover()
+            except Exception as error:
+                print('Preparación de portada:',type(error).__name__,flush=True)

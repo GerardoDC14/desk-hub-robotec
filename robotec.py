@@ -75,10 +75,10 @@ def weather_kind(code):
     if 51<=code<=67 or 80<=code<=82: return 'rain'
     return 'cloud'
 
-def image_pixels(url):
+def image_pixels(url,timeout=6):
     from PIL import Image
     req = urllib.request.Request(url,headers={'User-Agent':'DeskHubRobotec/2.0'})
-    with urllib.request.urlopen(req,timeout=6) as r:
+    with urllib.request.urlopen(req,timeout=timeout) as r:
         raw = r.read(2_000_000)
     with Image.open(io.BytesIO(raw)) as source:
         if source.width*source.height>16_000_000: raise ValueError('Portada demasiado grande')
@@ -191,6 +191,7 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
         self.ready.set()
         threading.Thread(target=self.music_events,daemon=True).start()
         threading.Thread(target=self.cover_worker,daemon=True).start()
+        threading.Thread(target=self.cover_prefetch_worker,daemon=True).start()
         threading.Thread(target=self.spotify_lifecycle,daemon=True).start()
         threading.Thread(target=self.system_worker,daemon=True).start()
         self.lock_hub(away=self.away_pending)

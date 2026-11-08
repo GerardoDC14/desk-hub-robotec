@@ -33,6 +33,7 @@ def apply_event(state, event, monotonic=time.monotonic, wall=time.time):
         album = (parent.get('decorations') or {}).get('identity',{}).get('name','') if parent.get('entity_type')=='album' else ''
         if (event.get('item') or {}).get('uri')!=state.get('uri'):
             state['next_title']=''
+            state['next_cover']=None
         state.update(uri=(event.get('item') or {}).get('uri',''),title=decor.get('identity',{}).get('name') or 'Selecciona Desk Hub Robotec',
                      artist=', '.join(c.get('entity',{}).get('decorations',{}).get('identity',{}).get('name','') for c in decor.get('creators',[])) or 'Spotify Connect',
                      album=album, duration=decor.get('playback',{}).get('duration_ms',0),
@@ -59,6 +60,8 @@ def apply_event(state, event, monotonic=time.monotonic, wall=time.time):
     if kind == 'queue_changed':
         upcoming = event.get('upcoming',[])
         state['next_title'] = ((upcoming[0].get('item') or {}).get('decorations',{}).get('identity',{}).get('name','') if upcoming else '')
+        covers = ((upcoming[0].get('item') or {}).get('decorations',{}).get('visual_identity',{}).get('cover',[]) if upcoming else [])
+        state['next_cover'] = covers[0].get('url') if covers else None
 
 
 def control_ready(state):

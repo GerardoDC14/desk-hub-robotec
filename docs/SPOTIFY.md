@@ -78,7 +78,9 @@ El botón circular central alterna los símbolos de reproducir y pausa, con el m
 
 **Abrir música** en Inicio lleva al reproductor. Si todavía no hay una sesión de Spotify, **¿Cómo conectar?** abre la guía. Si ya hay una sesión y el Hub está inactivo, **Escuchar aquí** solicita trasladar la reproducción al Hub. Ese traslado requiere tocar el botón; entrar en la pestaña Spotify no cambia el dispositivo que está reproduciendo.
 
-La portada usa vista rápida, refinamiento y caché en memoria. Volver a una canción conocida evita descargarla de nuevo, pero todavía hay que dibujarla en Nextion. El color y resolución son reducidos por el enlace UART. La API pública de [Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api) no documenta letras de canciones; esta integración no las presenta.
+La portada usa vista rápida, refinamiento y una caché de ocho imágenes en memoria. Cuando la cola de Spotify incluye la portada siguiente, el Hub la descarga y prepara por anticipado después de terminar la actual. Este trabajo se pospone durante capturas, timelapse y dibujo pendiente; no bloquea la descarga de una canción elegida manualmente. Las imágenes anticipadas usan exactamente el mismo procesamiento que la carga normal: 96 × 96 píxeles y hasta 192 colores. La preparación no modifica la velocidad UART ni los lotes de dibujo.
+
+Una portada preparada evita esperar su descarga y conversión al cambiar de canción. Si eliges una canción que no estaba en la cola, la conexión falla o reinicias el Hub, puede ser necesaria una descarga normal. En todos los casos todavía hay que dibujarla en Nextion: la anticipación no elimina ese tiempo de transmisión. La API pública de [Soloist](https://developer.spotify.com/documentation/soloist/reference/websocket-api) no documenta letras de canciones; esta integración no las presenta.
 
 ## Música guardada en el Hub
 
