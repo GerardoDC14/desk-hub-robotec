@@ -201,7 +201,7 @@ class LyricsViews:
         result=self.lyrics_result(music)
         if result.status=='synced':
             current=three_lines(result,position_ms(music))[1]
-            return current or 'Música · LRCLIB'
-        return {'loading':'Buscando letra · LRCLIB','instrumental':'Instrumental',
+            return current or 'Música'
+        return {'loading':'Buscando letra','instrumental':'Instrumental',
                 'unsynced':'Letra sin sincronización','missing':'Letra no disponible',
                 'unavailable':'Letra no disponible por ahora','limited':'Letras en espera'}.get(result.status,'')
