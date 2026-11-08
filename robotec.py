@@ -605,10 +605,30 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
         self.uart_baud=negotiate_speed(set_rate,self.send,self.receive_bytes,target)
         print('UART',self.uart_baud,'validado',flush=True)
 
-    def display_failed(self):
+    def display_silent_for(self,now=None):
+        """El dibujo puede durar más que el intervalo del heartbeat.
+
+        Sus barreras UART también confirman vida, aunque sendme esté pendiente
+        de procesarse en la siguiente vuelta del bucle.
+        """
+        now=time.monotonic() if now is None else now
+        confirmed=getattr(getattr(self,'link',None),'last_confirmed',None)
+        seen=getattr(self,'last_seen',0)
+        if isinstance(confirmed,(int,float)): seen=max(seen,confirmed)
+        return max(0,now-seen)
+
+    def check_display_health(self):
+        if self.online and self.display_silent_for()>6:
+            self.display_failed('sin respuestas durante más de 6 s')
+
+    def display_failed(self,reason='fallo de comunicación'):
+        print('UART: recuperando enlace a velocidad conservadora; '
+              f'motivo={reason}; vista={self.screen}; '
+              f'baudios={getattr(self,"uart_baud",0)}; '
+              f'sin_confirmacion={self.display_silent_for():.2f}s; '
+              f'dibujo_pendiente={len(self.artwork)}',flush=True)
         self.uart_target=115200; self.link=None
         self.lock_hub(); self.online=False; self.next_retry=time.monotonic()+1
-        print('UART: recuperando enlace a velocidad conservadora',flush=True)
 
     def run(self):
         while True:
@@ -639,6 +659,7 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
                 elif len(frame)==6 and frame[0]==0x67 and frame[5]==0:
                     self.touch(int.from_bytes(frame[1:3],'big'),int.from_bytes(frame[3:5],'big'))
                 elif frame==b'\x88':
+                    print('UART: pantalla reiniciada; se requiere PIN',flush=True)
                     self.lock_hub(); self.online=False; self.next_retry=0
                 elif frame and frame[0] in (0,3,4,5,0x1a): print('UART error:',frame.hex(),flush=True)
             try:
@@ -647,9 +668,9 @@ class Robotec(VideoViews, NotionViews, TimerViews, IdleControl, FriendlyUI, Focu
                 if self.online: self.flush_artwork()
                 if self.online and time.monotonic()>=self.next_heartbeat:
                     self.send('sendme'); self.next_heartbeat=time.monotonic()+2
-            except (OSError,TimeoutError): self.display_failed()
-            if self.online and time.monotonic()-self.last_seen>6:
-                self.lock_hub(); self.online=False; self.next_retry=0
+            except (OSError,TimeoutError) as exc:
+                self.display_failed(f'{type(exc).__name__}: {exc}')
+            self.check_display_health()
 
 def selftest():
     from desk_hub import selftest as original

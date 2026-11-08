@@ -27,6 +27,8 @@ class NextionLink:
         self.max_batch=max_batch
         self.write, self.receive, self.parser, self.clock = write, receive, parser, clock
         self.pending = deque()
+        # Sólo una barrera de ejecución confirmada acredita actividad del panel.
+        self.last_confirmed = None
 
     def send(self, commands):
         packets = []
@@ -58,5 +60,6 @@ class NextionLink:
                 else: self.pending.append(frame)
             if confirmed:
                 if errors: raise OSError('Nextion rechazó dibujo: '+','.join(f'{e:02x}' for e in errors))
+                self.last_confirmed = self.clock()
                 return
         raise TimeoutError('Nextion no confirmó el lote de dibujo')

@@ -45,10 +45,46 @@ class LinkTests(unittest.TestCase):
     def test_error_is_not_silently_cached_as_success(self):
         link=self.link([b'\x24'+END+bytes.fromhex('7100000000')+END])
         with self.assertRaisesRegex(OSError,'24'): link.send(['fill 0,0,1,1,0'])
+        self.assertIsNone(link.last_confirmed)
 
     def test_unconfirmed_lot_times_out(self):
         link=self.link([])
         with self.assertRaises(TimeoutError): link.send(['fill 0,0,1,1,0'])
+
+    def test_only_a_valid_barrier_refreshes_liveness(self):
+        fence=bytes.fromhex('7100000000')+END
+        link=self.link([fence])
+        link.send(['fill 0,0,1,1,0']); confirmed=link.last_confirmed
+        self.assertEqual(confirmed,self.clock)
+        self.replies.extend([b'\x66\x00'+END,b'\x01'+END,b'noise'])
+        with self.assertRaises(TimeoutError): link.send(['fill 0,0,1,1,0'])
+        self.assertEqual(link.last_confirmed,confirmed)
+
+    def test_slow_acknowledged_redraw_does_not_lock_while_page_reply_is_pending(self):
+        now=[100.0]; value=hub(); value.last_seen=now[0]; value.online=True
+        value.display_failed=Mock()
+        def receive(timeout):
+            # A slow display continues to execute each drawing batch correctly.
+            now[0]+=.2
+            return b'\x66\x00'+END+bytes.fromhex('7100000000')+END
+        value.link=NextionLink(lambda packet:None,receive,Frames(),lambda:now[0])
+        value.link.send(['fill 0,0,10,10,65535']*700)
+        self.assertGreater(now[0]-value.last_seen,6)  # Former watchdog would lock.
+        self.assertIn(b'\x66\x00',value.link.pending)
+        with patch('robotec.time.monotonic',return_value=now[0]):
+            value.check_display_health()
+        value.display_failed.assert_not_called()
+        self.assertTrue(value.unlocked)
+        # Old confirmations must not mask a subsequent, real loss of the panel.
+        with patch('robotec.time.monotonic',return_value=now[0]+6.1):
+            value.check_display_health()
+        value.display_failed.assert_called_once_with('sin respuestas durante más de 6 s')
+
+    def test_page_heartbeat_also_counts_without_drawing(self):
+        value=hub(); value.last_seen=100; value.online=True; value.link=None
+        value.display_failed=Mock()
+        with patch('robotec.time.monotonic',return_value=105): value.check_display_health()
+        value.display_failed.assert_not_called()
 
     def test_oversized_and_embedded_commands_are_rejected(self):
         link=self.link([])

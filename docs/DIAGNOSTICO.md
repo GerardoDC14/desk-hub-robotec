@@ -30,6 +30,28 @@ Después del reinicio debe aparecer el teclado de PIN. En Fuera, comprueba que D
 
 Desbloquea primero. Comprueba el ejecutable, clave local con permisos 600, unidad del usuario, red y salida de audio. El receptor debe estar inactivo mientras el panel está bloqueado. Consulta [Spotify y audio](SPOTIFY.md). Revisa el log si el reproductor requiere actualización; no publiques claves ni sesiones al pedir ayuda.
 
+## Vuelve al PIN durante música o cámara
+
+Comprueba primero los tiempos de **Estado → Pantalla y bloqueo**. La música no desactiva el bloqueo por inactividad. Si ocurre mientras estás usando la pantalla, consulta:
+
+```sh
+systemctl show desk-hub.service -p NRestarts -p ExecMainStartTimestamp -p Result
+journalctl -u desk-hub.service --since '30 minutes ago' --no-pager
+journalctl -k --since '30 minutes ago' --no-pager
+uptime
+```
+
+`NRestarts` cuenta reinicios automáticos del servicio, no todos los reinicios posibles. Compara también su hora de inicio y el tiempo encendida de la Pi.
+
+- **UART: recuperando enlace…** indica recuperación de la comunicación con Nextion. Incluye motivo, vista, baudios, segundos desde la última confirmación y número de instrucciones de imagen pendientes. No registra el contenido de fotos, PIN ni claves.
+- **Nextion no confirmó el lote de dibujo** significa que faltó la confirmación de ejecución durante 1,5 segundos después de enviar un lote. **Nextion rechazó dibujo** incluye el código de rechazo.
+- **UART: pantalla reiniciada** indica que Nextion envió su aviso de arranque.
+- **Under-voltage detected** en el registro del kernel indica una caída de alimentación detectada por la Pi. Revisa también el cable y sus conexiones, aunque la fuente tenga el voltaje nominal correcto.
+
+Las confirmaciones de cada lote de dibujo cuentan como actividad de la pantalla: una imagen que tarde más de seis segundos no debe provocar por sí sola el regreso al PIN. Si se pierde realmente la comunicación, se bloquea el Hub, se detiene Spotify y se intenta recuperar el enlace a 115200 baudios. A esa velocidad las imágenes tardan más. Tras revisar alimentación y conexiones, reinicia el servicio para negociar nuevamente la velocidad configurada. El bloqueo mantiene privadas la cámara y la galería; los temporizadores conservan su estado.
+
+Para comprobar estabilidad, alterna varias canciones, abre Cámara, activa y pausa la vista, toma una foto y vuelve a Spotify. Revisa que no haya nuevos mensajes de recuperación ni reinicios automáticos. Una prueba sin fallos no descarta una interrupción eléctrica intermitente.
+
 ## Fuente, temperatura y red
 
 ```sh
