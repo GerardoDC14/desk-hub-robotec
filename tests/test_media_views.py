@@ -153,6 +153,14 @@ class MediaViewTests(unittest.TestCase):
         self.assertEqual(v.camera.calls.count('capture'),1)
         v.navigate('home'); self.assertIsNone(v._shot_wait)
 
+    def test_capture_discards_unsent_preview_without_sending_more_pixels(self):
+        v=self.view();v._live_on=True;v._live_pixels=(1,2,3,4)
+        v.artwork.extend(['fill 32,104,5,5,1']*300)
+        v.touch_media(650,130)
+        self.assertFalse(v.artwork);self.assertIsNone(v._live_pixels)
+        self.assertFalse(v._live_on);self.assertEqual(v.camera.calls,['stop'])
+        self.assertIsNotNone(v._shot_due)
+
     def test_lock_blocks_all_new_routes(self):
         v=self.view(); v.unlocked=False
         for screen in ('gallery_grid','viewfinder','photo_show'):

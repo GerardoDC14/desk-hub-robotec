@@ -45,7 +45,18 @@ class SerialPerformanceTests(unittest.TestCase):
     def test_missing_panel_fails_in_bounded_time(self):
         sim=SerialSimulation(deaf=True)
         with self.assertRaises(RuntimeError):sim.negotiate()
-        self.assertLess(sim.now,4)
+        self.assertLess(sim.now,7)
+    def test_first_probe_rejected_after_baud_scan_is_retried_at_same_rate(self):
+        class ResidualBytes(SerialSimulation):
+            def __init__(self):super().__init__(115200);self.probes={}
+            def send(self,command):
+                super().send(command)
+                if command=='sendme' and self.host==self.device:
+                    self.probes[self.host]=self.probes.get(self.host,0)+1
+                    if self.probes[self.host]==1:self.reply=b'\x1a'+END
+        sim=ResidualBytes()
+        self.assertEqual(sim.negotiate(target=230400),230400)
+        self.assertEqual(sim.probes,{115200:2,230400:2})
     def test_fast_packets_reserve_rx_headroom_and_keep_touches(self):
         packets=[]; touch=bytes.fromhex('670100010000')
         link=NextionLink(packets.append,lambda t:touch+END+b'\x71\0\0\0\0'+END,Frames(),max_batch=960)

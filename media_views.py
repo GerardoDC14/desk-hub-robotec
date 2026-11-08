@@ -166,6 +166,7 @@ class MediaViews:
             if 104<=y<180 and not getattr(self,'_shot_due',None) and not getattr(self,'_shot_wait',None):
                 if state['timelapse']: return False
                 self._live_on=False; self.camera.stop_preview()
+                self.artwork.clear(); self._live_pixels=None
                 self._shot_due=time.monotonic()+getattr(self,'_shot_delay',0)
             elif 196<=y<240 and not getattr(self,'_shot_due',None) and not getattr(self,'_shot_wait',None):
                 if getattr(self,'_live_on',False):

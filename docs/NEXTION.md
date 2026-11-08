@@ -22,6 +22,17 @@ El modo rápido agrupa hasta **960 bytes** de instrucciones más una barrera de 
 
 Si falla la confirmación de un lote durante el dibujo, el Hub bloquea el panel y reintenta el enlace a **115200**. Para mantener esa velocidad desde el arranque, configura `Environment=DESK_HUB_BAUD=115200` en un override de `desk-hub.service`, recarga systemd y reinicia el servicio. Se admiten 115200, 230400 y 921600. Un reinicio de la pantalla vuelve a la velocidad definida por el TFT y la aplicación la negocia otra vez.
 
+Si 921600 no es estable durante música y cámara, puedes seleccionar **230400** como velocidad intermedia. No cambia la resolución ni los archivos de las fotos; aumenta el tiempo de transmisión de las imágenes. Ejecuta `sudo systemctl edit desk-hub.service` y añade:
+
+```ini
+[Service]
+Environment=DESK_HUB_BAUD=230400
+```
+
+Después ejecuta `sudo systemctl daemon-reload` y `sudo systemctl restart desk-hub.service`. Comprueba que el registro indique `UART 230400 validado` y prueba música, encuadre y captura juntos. Si ya defines `DESK_HUB_BAUD` en `~/.config/desk-hub/environment`, cambia ese valor también: un `EnvironmentFile` tiene prioridad sobre `Environment`. Reducir la velocidad no corrige una alimentación defectuosa ni conexiones flojas.
+
+La detección prueba dos veces cada velocidad antes de descartarla, para permitir que el terminador vacíe bytes incompletos de un sondeo anterior. La segunda consulta repite únicamente la identificación de página y no acciones del panel.
+
 Las portadas de música se procesan a **96 × 96**, con hasta 192 colores; primero aparece una vista rápida y después el detalle. Los iconos de reproducción usan bordes suavizados a su tamaño nativo. El contenido cambia por regiones para mantener disponibles los controles táctiles. La resolución física del panel sigue siendo 800 × 480; la conexión UART limita el detalle y la frecuencia de las imágenes dinámicas.
 
 ## Cargar con microSD

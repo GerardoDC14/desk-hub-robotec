@@ -6,11 +6,16 @@ def negotiate_speed(set_rate, send, receive, target=921600, clock=time.monotonic
     if target not in (115200,230400,921600): raise ValueError('Velocidad UART no admitida')
     rates=list(dict.fromkeys((target,115200,9600,230400,921600)))
     def probe(rate):
-        set_rate(rate); send(''); send('sendme')
-        deadline=clock()+.65; raw=b''
-        while clock()<deadline:
-            raw=(raw+receive(.03))[-4096:]
-            if b'\x66\x00\xff\xff\xff' in raw: return True
+        set_rate(rate)
+        # Un sondeo a otra velocidad puede dejar bytes incompletos en Nextion.
+        # Vaciar con el terminador y repetir en la MISMA velocidad antes de
+        # descartarla; no volver a cambiar baud entre estos dos intentos.
+        for _ in range(2):
+            send(''); send('sendme')
+            deadline=clock()+.65; raw=b''
+            while clock()<deadline:
+                raw=(raw+receive(.03))[-4096:]
+                if b'\x66\x00\xff\xff\xff' in raw: return True
         return False
     found=next((rate for rate in rates if probe(rate)),None)
     if found is None: raise RuntimeError('Pantalla sin respuesta a las velocidades admitidas')
